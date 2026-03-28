@@ -1,0 +1,31 @@
+{
+    "wrapping": {
+        "maxLineLength": 80
+    },
+    "sameLine": {
+        "ifBody": "fitLine"
+    }
+}
+
+---
+
+class Main {
+	function test() {
+		if (x > 0)
+			doStuff(x);
+
+		if (someVeryLongConditionThatTakesUpMostOfTheLine)
+			doSomethingWithAVeryLongMethodNameThatWontFit();
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		if (x > 0) doStuff(x);
+
+		if (someVeryLongConditionThatTakesUpMostOfTheLine)
+			doSomethingWithAVeryLongMethodNameThatWontFit();
+	}
+}

@@ -1,0 +1,30 @@
+{
+    "wrapping": {
+        "maxLineLength": 80
+    },
+    "sameLine": {
+        "ifBody": "fitLine",
+        "elseBody": "fitLine",
+        "fitLineIfWithElse": true
+    }
+}
+
+---
+
+class Main {
+	function test() {
+		if (x > 0)
+			doStuff(x);
+		else
+			doOther(x);
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		if (x > 0) doStuff(x);
+		else doOther(x);
+	}
+}

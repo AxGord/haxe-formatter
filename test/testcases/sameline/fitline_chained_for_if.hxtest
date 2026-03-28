@@ -1,0 +1,27 @@
+{
+    "wrapping": {
+        "maxLineLength": 120
+    },
+    "sameLine": {
+        "forBody": "fitLine",
+        "ifBody": "fitLine"
+    }
+}
+
+---
+
+class Main {
+	function test() {
+		for (session in paths)
+			if (!sessions.contains(session))
+				sessions.push(session);
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		for (session in paths) if (!sessions.contains(session)) sessions.push(session);
+	}
+}

@@ -6,14 +6,23 @@ typedef SameLineConfig = {
 		* same = place if and body on same line
 		* next = place body on next line
 		* keep = keep same / next line from source
+		* fitLine = same line if total line length fits within maxLineLength, otherwise next line
 	**/
 	@:default(Next) @:optional var ifBody:SameLinePolicy;
+
+	/**
+		when ifBody is "fitLine", also apply it to "if" statements that have an "else" branch.
+		false = don't compact if-with-else (better readability)
+		true = apply fitLine regardless of else
+	**/
+	@:default(false) @:optional var fitLineIfWithElse:Bool;
 
 	/**
 		same line policy for non block body of "else"
 		* same = place else and body on same line
 		* next = place body on next line
 		* keep = keep same / next line from source
+		* fitLine = same line if total line length fits within maxLineLength, otherwise next line
 	**/
 	@:default(Next) @:optional var elseBody:SameLinePolicy;
 
@@ -58,6 +67,7 @@ typedef SameLineConfig = {
 		* same = place function and body on same line
 		* next = place body on next line
 		* keep = keep same / next line from source
+		* fitLine = same line if total line length fits within maxLineLength, otherwise next line
 	**/
 	@:default(Next) @:optional var forBody:SameLinePolicy;
 
@@ -68,6 +78,7 @@ typedef SameLineConfig = {
 		* same = place while and body on same line
 		* next = place body on next line
 		* keep = keep same / next line from source
+		* fitLine = same line if total line length fits within maxLineLength, otherwise next line
 	**/
 	@:default(Next) @:optional var whileBody:SameLinePolicy;
 
@@ -76,6 +87,7 @@ typedef SameLineConfig = {
 		* same = place function and body on same line
 		* next = place body on next line
 		* keep = keep same / next line from source
+		* fitLine = same line if total line length fits within maxLineLength, otherwise next line
 	**/
 	@:default(Next) @:optional var doWhileBody:SameLinePolicy;
 
@@ -92,6 +104,7 @@ typedef SameLineConfig = {
 		* same = place try and body on same line
 		* next = place body on next line
 		* keep = keep same / next line from source
+		* fitLine = same line if total line length fits within maxLineLength, otherwise next line
 	**/
 	@:default(Next) @:optional var tryBody:SameLinePolicy;
 
@@ -100,6 +113,7 @@ typedef SameLineConfig = {
 		* same = place catch and body on same line
 		* next = place body on next line
 		* keep = keep same / next line from source
+		* fitLine = same line if total line length fits within maxLineLength, otherwise next line
 	**/
 	@:default(Next) @:optional var catchBody:SameLinePolicy;
 
@@ -120,6 +134,7 @@ typedef SameLineConfig = {
 		* same = place function and body on same line
 		* next = place body on next line
 		* keep = keep same / next line from source
+		* fitLine = same line if total line length fits within maxLineLength, otherwise next line
 	**/
 	@:default(Next) @:optional var functionBody:SameLinePolicy;
 
@@ -128,6 +143,7 @@ typedef SameLineConfig = {
 		* same = place function and body on same line
 		* next = place body on next line
 		* keep = keep same / next line from source
+		* fitLine = same line if total line length fits within maxLineLength, otherwise next line
 	**/
 	@:default(Same) @:optional var anonFunctionBody:SameLinePolicy;
 
@@ -160,4 +176,5 @@ enum abstract SameLinePolicy(String) {
 	var Same = "same";
 	var Next = "next";
 	var Keep = "keep";
+	var FitLine = "fitLine";
 }

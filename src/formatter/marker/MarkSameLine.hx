@@ -192,10 +192,10 @@ class MarkSameLine extends MarkerBase {
 				case Keep:
 					markBodyAfterPOpen(token, Keep, config.sameLine.expressionIfWithBlocks);
 					return;
-				case Next:
+				case Next | FitLine:
 			}
 		}
-		markBodyAfterPOpen(token, config.sameLine.ifBody, false);
+		markBodyAfterPOpen(token, resolveFitLine(token, config.sameLine.ifBody), false);
 		var prev:Null<TokenInfo> = getPreviousToken(token);
 		if ((prev != null) && (prev.token.tok.match(Kwd(KwdElse)))) {
 			applySameLinePolicy(token, config.sameLine.elseIf);
@@ -228,11 +228,11 @@ class MarkSameLine extends MarkerBase {
 						applySameLinePolicyChained(token, Keep, Keep);
 					}
 					return;
-				case Next:
+				case Next | FitLine:
 			}
 		}
 
-		markBody(token, config.sameLine.elseBody, false);
+		markBody(token, resolveFitLine(token, config.sameLine.elseBody), false);
 		var policy:SameLinePolicy = config.sameLine.ifElse;
 		var prev:Null<TokenInfo> = getPreviousToken(token);
 		if (prev != null) {
@@ -240,7 +240,7 @@ class MarkSameLine extends MarkerBase {
 				case BrClose:
 					if (!prev.token.access().parent().matches(BrOpen).parent().matches(Kwd(KwdIf)).exists()) {
 						switch (policy) {
-							case Same:
+							case Same | FitLine:
 								policy = Next;
 							case Next:
 							case Keep:
@@ -249,7 +249,7 @@ class MarkSameLine extends MarkerBase {
 				case Semicolon:
 					if (config.sameLine.ifElseSemicolonNextLine) {
 						switch (policy) {
-							case Same:
+							case Same | FitLine:
 								policy = Next;
 							case Next:
 							case Keep:
@@ -266,7 +266,7 @@ class MarkSameLine extends MarkerBase {
 			markBody(token, Same, false);
 			return;
 		}
-		markBody(token, config.sameLine.tryBody, false);
+		markBody(token, resolveFitLine(token, config.sameLine.tryBody), false);
 	}
 
 	function markCatch(token:TokenTree) {
@@ -275,7 +275,7 @@ class MarkSameLine extends MarkerBase {
 			applySameLinePolicy(token, config.sameLine.expressionTry);
 			return;
 		}
-		markBodyAfterPOpen(token, config.sameLine.catchBody, false);
+		markBodyAfterPOpen(token, resolveFitLine(token, config.sameLine.catchBody), false);
 		applySameLinePolicyChained(token, config.sameLine.tryBody, config.sameLine.tryCatch);
 	}
 
@@ -296,7 +296,7 @@ class MarkSameLine extends MarkerBase {
 			return;
 		}
 		switch (config.sameLine.caseBody) {
-			case Same:
+			case Same | FitLine:
 			case Keep:
 				if (!parsedCode.isOriginalSameLine(dblDot, dblDot.getFirstChild())) {
 					return;
@@ -318,7 +318,7 @@ class MarkSameLine extends MarkerBase {
 		}
 
 		switch (config.sameLine.expressionCase) {
-			case Same:
+			case Same | FitLine:
 			case Keep:
 				if (!parsedCode.isOriginalSameLine(dblDot, dblDot.getFirstChild())) {
 					return;
@@ -388,7 +388,7 @@ class MarkSameLine extends MarkerBase {
 				}
 			default:
 		}
-		markBodyAfterPOpen(token, config.sameLine.forBody, false);
+		markBodyAfterPOpen(token, resolveFitLine(token, config.sameLine.forBody), false);
 	}
 
 	function markWhile(token:TokenTree) {
@@ -403,7 +403,7 @@ class MarkSameLine extends MarkerBase {
 			markArrayComprehension(token, parent);
 			return;
 		}
-		markBodyAfterPOpen(token, config.sameLine.whileBody, false);
+		markBodyAfterPOpen(token, resolveFitLine(token, config.sameLine.whileBody), false);
 	}
 
 	function markArrayComprehension(token:TokenTree, bkOpen:TokenTree) {
@@ -440,7 +440,7 @@ class MarkSameLine extends MarkerBase {
 				} else {
 					markBodyAfterPOpen(token, config.sameLine.forBody, false);
 				}
-			case Next:
+			case Next | FitLine:
 				// do nothing
 		}
 	}
@@ -601,8 +601,117 @@ class MarkSameLine extends MarkerBase {
 		applySameLinePolicy(token, policy);
 	}
 
+	function resolveFitLine(keyword:TokenTree, policy:SameLinePolicy):SameLinePolicy {
+		if (policy != FitLine) {
+			return policy;
+		}
+		// Skip fitLine for if/else constructs unless explicitly allowed
+		if (!config.sameLine.fitLineIfWithElse && isPartOfIfElse(keyword)) {
+			return Next;
+		}
+		var indent:Int = indenter.calcIndent(keyword);
+		var indentLen:Int = indenter.calcAbsoluteIndent(indent);
+
+		// Phase 1: check if the entire statement fits on one line
+		var lastToken:Null<TokenTree> = findFirstLineLastToken(keyword);
+		if (lastToken != null) {
+			var contentLen:Int = calcLengthBetween(keyword, lastToken) + calcTokenLength(lastToken);
+			if ((indentLen + contentLen) <= config.wrapping.maxLineLength) {
+				return Same;
+			}
+		}
+
+		// Phase 2: if body is a nested keyword (for/if/while), check if just this level fits
+		// (up to the nested keyword's closing paren) — let the inner level decide for itself
+		var body:Null<TokenTree> = getBodyAfterCondition(keyword);
+		if (body != null) {
+			switch (body.tok) {
+				case Kwd(KwdFor), Kwd(KwdIf), Kwd(KwdWhile), Kwd(KwdDo):
+					var pClose:Null<TokenTree> = body.access().firstOf(POpen).firstOf(PClose).token;
+					if (pClose != null) {
+						var partialLen:Int = calcLengthBetween(keyword, pClose) + calcTokenLength(pClose);
+						if ((indentLen + partialLen) <= config.wrapping.maxLineLength) {
+							return Same;
+						}
+					}
+				default:
+			}
+		}
+
+		return Next;
+	}
+
+	function isPartOfIfElse(keyword:TokenTree):Bool {
+		if (keyword.tok.match(Kwd(KwdElse))) {
+			return true;
+		}
+		if (!keyword.tok.match(Kwd(KwdIf))) {
+			return false;
+		}
+		// "if" with "else"
+		if (keyword.children != null) {
+			for (child in keyword.children) {
+				if (child.tok.match(Kwd(KwdElse))) {
+					return true;
+				}
+			}
+		}
+		// "if" inside "else" (i.e. "else if" construct)
+		return (keyword.parent != null) && keyword.parent.tok.match(Kwd(KwdElse));
+	}
+
+	/**
+		Walk the token tree from `token` and find the last token that would be on the first line.
+		Stops at BrOpen (block body) since the block content goes on subsequent lines.
+	**/
+	function findFirstLineLastToken(token:TokenTree):Null<TokenTree> {
+		var last:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(token);
+		if (last == null) {
+			return null;
+		}
+		// Walk tokens from keyword forward; if we hit a BrOpen that is a block, the first line ends at '{'
+		var current:Null<TokenTree> = token;
+		while (current != null) {
+			switch (current.tok) {
+				case BrOpen:
+					var type:BrOpenType = TokenTreeCheckUtils.getBrOpenType(current);
+					switch (type) {
+						case Block:
+							return current;
+						default:
+					}
+				default:
+			}
+			if (current == last) {
+				break;
+			}
+			// Traverse: first child, then next sibling, then parent's next sibling
+			if (current.children != null && current.children.length > 0) {
+				current = current.children[0];
+			} else if (current.nextSibling != null) {
+				current = current.nextSibling;
+			} else {
+				// Walk up to find next sibling
+				var parent:Null<TokenTree> = current.parent;
+				current = null;
+				while (parent != null && parent != token.parent) {
+					if (parent.nextSibling != null) {
+						current = parent.nextSibling;
+						break;
+					}
+					parent = parent.parent;
+				}
+			}
+		}
+		return last;
+	}
+
 	function applySameLinePolicy(token:TokenTree, policy:SameLinePolicy) {
 		switch (policy) {
+			case FitLine:
+				// FitLine should be resolved to Same/Next by resolveFitLine before reaching here.
+				// If it does reach here (e.g. from fields that don't call resolveFitLine), do nothing.
+				return;
 			case Keep:
 				if (parsedCode.isOriginalNewlineBefore(token)) {
 					applySameLinePolicy(token, Next);
@@ -751,11 +860,11 @@ class MarkSameLine extends MarkerBase {
 				return;
 			default:
 		}
-		applySameLinePolicy(body, policy);
+		applySameLinePolicy(body, resolveFitLine(token, policy));
 	}
 
 	function markDoWhile(token:TokenTree) {
-		markBody(token, config.sameLine.doWhileBody, false);
+		markBody(token, resolveFitLine(token, config.sameLine.doWhileBody), false);
 		var whileTok:Null<TokenTree> = token.access().firstOf(Kwd(KwdWhile)).token;
 		if (whileTok == null) {
 			return;

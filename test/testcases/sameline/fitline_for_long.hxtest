@@ -1,0 +1,25 @@
+{
+    "wrapping": {
+        "maxLineLength": 60
+    },
+    "sameLine": {
+        "forBody": "fitLine"
+    }
+}
+
+---
+
+class Main {
+	function test() {
+		for (session in lockForSessionsPaths) doSomethingVeryLong(session);
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		for (session in lockForSessionsPaths)
+			doSomethingVeryLong(session);
+	}
+}

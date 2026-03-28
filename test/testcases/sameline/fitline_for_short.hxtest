@@ -1,0 +1,25 @@
+{
+    "wrapping": {
+        "maxLineLength": 80
+    },
+    "sameLine": {
+        "forBody": "fitLine"
+    }
+}
+
+---
+
+class Main {
+	function test() {
+		for (x in items)
+			doStuff(x);
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		for (x in items) doStuff(x);
+	}
+}

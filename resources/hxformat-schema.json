@@ -812,6 +812,9 @@
 				},
 				{
 					"const": "keep"
+				},
+				{
+					"const": "fitLine"
 				}
 			]
 		},
@@ -1151,6 +1154,11 @@
 					"description": "same line policy for non block body of \"function\" * same = place function and body on same line * next = place body on next line * keep = keep same / next line from source",
 					"$ref": "#/definitions/formatter.config.SameLinePolicy",
 					"default": "next"
+				},
+				"fitLineIfWithElse": {
+					"description": "When ifBody is fitLine, also apply it to if statements that have an else branch. false = don't compact if-with-else.",
+					"default": false,
+					"type": "boolean"
 				},
 				"ifElseSemicolonNextLine": {
 					"description": "Add new line after `if body` to `if (...) body; else ...` Don't touch `if (...) body else ...` or `if (...) {body} else ...`",

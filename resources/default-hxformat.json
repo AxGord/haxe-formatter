@@ -155,6 +155,7 @@
 		"expressionIf": "same",
 		"expressionIfWithBlocks": false,
 		"expressionTry": "same",
+		"fitLineIfWithElse": false,
 		"forBody": "next",
 		"functionBody": "next",
 		"ifBody": "next",

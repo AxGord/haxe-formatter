@@ -1,0 +1,25 @@
+{
+    "wrapping": {
+        "maxLineLength": 80
+    },
+    "sameLine": {
+        "whileBody": "fitLine"
+    }
+}
+
+---
+
+class Main {
+	function test() {
+		while (items.length > 0)
+			items.pop();
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		while (items.length > 0) items.pop();
+	}
+}
