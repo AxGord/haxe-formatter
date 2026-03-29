@@ -516,7 +516,7 @@ class TokenList {
 					if (!first) {
 						var close:Null<TokenTree> = getCloseToken(info.token);
 						if (close != null) {
-							index = close.index;
+							index = close.index + 1;
 							continue;
 						}
 					}
@@ -524,7 +524,7 @@ class TokenList {
 					if (!first) {
 						var close:Null<TokenTree> = getCloseToken(info.token);
 						if (close != null) {
-							index = close.index;
+							index = close.index + 1;
 							continue;
 						}
 					}
@@ -532,7 +532,7 @@ class TokenList {
 					if (!first) {
 						var close:Null<TokenTree> = getCloseToken(info.token);
 						if (close != null) {
-							index = close.index;
+							index = close.index + 1;
 							continue;
 						}
 					}
