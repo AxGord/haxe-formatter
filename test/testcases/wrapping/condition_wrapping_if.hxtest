@@ -1,0 +1,46 @@
+{
+	"wrapping": {
+		"maxLineLength": 80,
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (conditionAlpha && conditionBravo && conditionCharlie && conditionDelta && conditionEcho) {
+			doSomething();
+		}
+		if (shortCond) {
+			doSomething();
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (
+			conditionAlpha
+			&& conditionBravo
+			&& conditionCharlie
+			&& conditionDelta
+			&& conditionEcho
+		) {
+			doSomething();
+		}
+		if (shortCond) {
+			doSomething();
+		}
+	}
+}

@@ -3,6 +3,9 @@ package formatter.marker.wrapping;
 import formatter.config.WrapConfig;
 
 class MarkWrapping extends MarkWrappingBase {
+	var conditionWraps:Array<TokenTree> = [];
+	var parenIndentWraps:Array<TokenTree> = [];
+
 	public function run() {
 		var wrappableTokens:Array<TokenTree> = parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
 			switch (token.tok) {
@@ -60,8 +63,11 @@ class MarkWrapping extends MarkWrappingBase {
 		markOpBoolChaining();
 		markOpAddChaining();
 		markCasePatternChaining();
+		markTernaryChaining();
 
 		applyWrappingQueue();
+		applyConditionWrapping();
+		applyParenIndentWrapping();
 	}
 
 	function wrapTypeParameter(token:TokenTree) {
@@ -238,12 +244,17 @@ class MarkWrapping extends MarkWrappingBase {
 				wrapFunctionSignature(token);
 			case Call:
 				wrapCallParameter(token);
-			case SwitchCondition:
 			case WhileCondition:
+				wrapCondition(token);
 			case IfCondition:
+				wrapCondition(token);
+			case ForLoop:
+				if (!isComprehension(token)) {
+					wrapCondition(token);
+				}
+			case SwitchCondition:
 			case SharpCondition:
 			case Catch:
-			case ForLoop:
 			case Expression:
 		}
 	}
@@ -415,6 +426,10 @@ class MarkWrapping extends MarkWrappingBase {
 		}
 		var emptyBody:Bool = hasEmptyFunctionBody(token);
 		var items:Array<WrappableItem> = makeWrappableItems(token);
+		var rule:WrapRule = determineWrapType2(rules, token, items);
+		if (rule.type == FillLineWithLeadingBreak) {
+			parenIndentWraps.push(token);
+		}
 		var addIndent:Null<Int> = null;
 		if (emptyBody) {
 			addIndent = 0;
@@ -436,6 +451,10 @@ class MarkWrapping extends MarkWrappingBase {
 			return;
 		}
 		var items:Array<WrappableItem> = makeWrappableItems(token);
+		var rule:WrapRule = determineWrapType2(config.wrapping.callParameter, token, items);
+		if (rule.type == FillLineWithLeadingBreak) {
+			parenIndentWraps.push(token);
+		}
 		queueWrapping({
 			origin: CallParameterWrapping,
 			start: token,
@@ -462,6 +481,160 @@ class MarkWrapping extends MarkWrappingBase {
 			useTrailing: false,
 			overrideAdditionalIndent: null
 		}, "wrapMetadataCallParameter");
+	}
+
+	function wrapCondition(token:TokenTree) {
+		if ((token.children == null) || (token.children.length <= 0)) {
+			return;
+		}
+		var items:Array<WrappableItem> = makeWrappableItems(token);
+		var rule:WrapRule = determineWrapType2(config.wrapping.conditionWrapping, token, items);
+		if (rule.type != NoWrap && rule.type != Keep) {
+			conditionWraps.push(token);
+		}
+	}
+
+	function isComprehension(pOpen:TokenTree):Bool {
+		var parent:Null<TokenTree> = pOpen.parent;
+		while (parent != null) {
+			switch (parent.tok) {
+				case Kwd(KwdFor), Kwd(KwdWhile), Kwd(KwdIf), Kwd(KwdElse):
+					parent = parent.parent;
+				case BkOpen:
+					return true;
+				default:
+					return false;
+			}
+		}
+		return false;
+	}
+
+	function applyParenIndentWrapping() {
+		for (token in parenIndentWraps) {
+			var pClose:Null<TokenTree> = getCloseToken(token);
+			if (pClose == null) {
+				continue;
+			}
+			if (isNewLineAfter(token)) {
+				lineEndBefore(pClose);
+			}
+		}
+	}
+
+	function applyConditionWrapping() {
+		for (token in conditionWraps) {
+			var pClose:Null<TokenTree> = getCloseToken(token);
+			if (pClose == null) {
+				continue;
+			}
+			if (hasInnerParenWrapping(token, pClose)) {
+				continue;
+			}
+			lineEndAfter(token);
+			lineEndBefore(pClose);
+		}
+	}
+
+	function hasInnerParenWrapping(open:TokenTree, close:TokenTree):Bool {
+		return findWrappedPOpen(open, close);
+	}
+
+	function findWrappedPOpen(token:TokenTree, limit:TokenTree):Bool {
+		if (token.children == null) {
+			return false;
+		}
+		for (child in token.children) {
+			if (child.index >= limit.index) {
+				return false;
+			}
+			switch (child.tok) {
+				case POpen:
+					if (isNewLineAfter(child)) {
+						return true;
+					}
+				default:
+			}
+			if (findWrappedPOpen(child, limit)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	function markTernaryChaining() {
+		var chainStarts:Array<TokenTree> = parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
+			if (!token.hasChildren()) {
+				return SkipSubtree;
+			}
+			for (child in token.children) {
+				switch (child.tok) {
+					case Question:
+						return FoundGoDeeper;
+					default:
+				}
+			}
+			return GoDeeper;
+		});
+		for (chainStart in chainStarts) {
+			markSingleTernaryChain(chainStart);
+		}
+	}
+
+	function markSingleTernaryChain(itemStart:TokenTree) {
+		var items:Array<WrappableItem> = [];
+		var prev:Null<TokenInfo> = getPreviousToken(itemStart);
+		var chainStart:TokenTree = itemStart;
+		if (prev != null) {
+			chainStart = prev.token;
+		}
+		var chainEnd:Null<TokenTree> = itemStart.getLastChild();
+		if (chainEnd != null) {
+			chainEnd = TokenTreeCheckUtils.getLastToken(chainEnd);
+			switch (chainEnd.tok) {
+				case Semicolon, Comma, PClose:
+				default:
+					var next:Null<TokenInfo> = getNextToken(chainEnd);
+					if (next != null) {
+						chainEnd = next.token;
+					}
+			}
+		}
+		if (itemStart.children != null) {
+			var currentStart:TokenTree = itemStart;
+			for (child in itemStart.children) {
+				switch (child.tok) {
+					case Question:
+						// item: condition through ? operator
+						items.push(makeWrappableItem(currentStart, child));
+						var next:Null<TokenInfo> = getNextToken(child);
+						if (next != null) {
+							currentStart = next.token;
+						}
+					case DblDot:
+						// item: true-branch through : operator
+						items.push(makeWrappableItem(currentStart, child));
+						var next:Null<TokenInfo> = getNextToken(child);
+						if (next != null) {
+							currentStart = next.token;
+						}
+					default:
+				}
+			}
+			// last item: false-branch
+			items.push(makeWrappableItem(currentStart, TokenTreeCheckUtils.getLastToken(currentStart)));
+		}
+		if (items.length < 2) {
+			return;
+		}
+		queueWrapping({
+			origin: TernaryWrapping,
+			start: chainStart,
+			end: chainEnd,
+			items: items,
+			rules: config.wrapping.ternaryExpression,
+			useTrailing: false,
+			overrideAdditionalIndent: null
+		}, "markSingleTernaryChain");
 	}
 
 	function markMethodChaining(startToken:Null<TokenTree>) {

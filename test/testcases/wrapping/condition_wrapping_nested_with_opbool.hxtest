@@ -1,0 +1,66 @@
+{
+	"wrapping": {
+		"maxLineLength": 80,
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"opBoolChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "onePerLineAfterFirst",
+					"location": "afterLast"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (checkCondition(user, share) && !result.exists((u:ShareUser) -> (u.id != 0 && u.id == user.id) || u.email == user.email)) {
+			doSomething();
+		}
+		if (!sessionLostList.exists((s:ShareUser) -> (s.id != 0 && s.id == ds.id) || s.email == ds.email)) {
+			doSomething();
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (
+			checkCondition(user, share) &&
+			!result.exists(
+				(u:ShareUser) -> (u.id != 0 && u.id == user.id) || u.email == user.email
+			)
+		) {
+			doSomething();
+		}
+		if (!sessionLostList.exists(
+			(s:ShareUser) -> (s.id != 0 && s.id == ds.id) || s.email == ds.email
+		)) {
+			doSomething();
+		}
+	}
+}

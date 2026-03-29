@@ -1,0 +1,49 @@
+{
+	"wrapping": {
+		"maxLineLength": 80,
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"opBoolChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "onePerLineAfterFirst",
+					"location": "beforeLast"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (veryLongConditionA && veryLongConditionB && veryLongConditionC && veryLongConditionD) {
+			doSomething();
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (
+			veryLongConditionA
+			&& veryLongConditionB
+			&& veryLongConditionC
+			&& veryLongConditionD
+		) {
+			doSomething();
+		}
+	}
+}

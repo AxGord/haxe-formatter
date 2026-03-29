@@ -478,6 +478,32 @@ typedef WrapConfig = {
 	})
 	@:optional
 	var casePattern:WrapRules;
+
+	/**
+		wrapping rules for if/while/for condition parentheses
+	**/
+	@:default({
+		defaultWrap: NoWrap,
+		rules: []
+	})
+	@:optional
+	var conditionWrapping:WrapRules;
+
+	/**
+		wrapping rules for ternary operator (? :)
+	**/
+	@:default({
+		defaultWrap: NoWrap,
+		rules: [
+			{
+				conditions: [{cond: ExceedsMaxLineLength, value: 1}],
+				type: OnePerLineAfterFirst,
+				location: BeforeLast
+			}
+		]
+	})
+	@:optional
+	var ternaryExpression:WrapRules;
 }
 
 typedef WrapRules = {

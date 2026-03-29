@@ -1050,7 +1050,7 @@
 		"formatter.config.SameLineConfig": {
 			"properties": {
 				"tryBody": {
-					"description": "same line policy for non block body of \"try\" * same = place try and body on same line * next = place body on next line * keep = keep same / next line from source",
+					"description": "same line policy for non block body of \"try\" * same = place try and body on same line * next = place body on next line * keep = keep same / next line from source * fitLine = same line if total line length fits within maxLineLength, otherwise next line",
 					"$ref": "#/definitions/formatter.config.SameLinePolicy",
 					"default": "next"
 				},
@@ -1064,7 +1064,7 @@
 					"default": "keep"
 				},
 				"elseBody": {
-					"description": "same line policy for non block body of \"else\" * same = place else and body on same line * next = place body on next line * keep = keep same / next line from source",
+					"description": "same line policy for non block body of \"else\" * same = place else and body on same line * next = place body on next line * keep = keep same / next line from source * fitLine = same line if total line length fits within maxLineLength, otherwise next line",
 					"$ref": "#/definitions/formatter.config.SameLinePolicy",
 					"default": "next"
 				},
@@ -1078,7 +1078,7 @@
 					"default": "same"
 				},
 				"catchBody": {
-					"description": "same line policy for non block body of \"catch\" * same = place catch and body on same line * next = place body on next line * keep = keep same / next line from source",
+					"description": "same line policy for non block body of \"catch\" * same = place catch and body on same line * next = place body on next line * keep = keep same / next line from source * fitLine = same line if total line length fits within maxLineLength, otherwise next line",
 					"$ref": "#/definitions/formatter.config.SameLinePolicy",
 					"default": "next"
 				},
@@ -1092,12 +1092,12 @@
 					"default": "same"
 				},
 				"anonFunctionBody": {
-					"description": "same line policy for non block body of anon \"function\" * same = place function and body on same line * next = place body on next line * keep = keep same / next line from source",
+					"description": "same line policy for non block body of anon \"function\" * same = place function and body on same line * next = place body on next line * keep = keep same / next line from source * fitLine = same line if total line length fits within maxLineLength, otherwise next line",
 					"$ref": "#/definitions/formatter.config.SameLinePolicy",
 					"default": "same"
 				},
 				"ifBody": {
-					"description": "same line policy for non block body of \"if\" * same = place if and body on same line * next = place body on next line * keep = keep same / next line from source",
+					"description": "same line policy for non block body of \"if\" * same = place if and body on same line * next = place body on next line * keep = keep same / next line from source * fitLine = same line if total line length fits within maxLineLength, otherwise next line",
 					"$ref": "#/definitions/formatter.config.SameLinePolicy",
 					"default": "next"
 				},
@@ -1105,6 +1105,11 @@
 					"description": "same line policy for \"catch\" part of \"try…catch\" * same = place function and body on same line * next = place body on next line * keep = keep same / next line from source",
 					"$ref": "#/definitions/formatter.config.SameLinePolicy",
 					"default": "same"
+				},
+				"fitLineIfWithElse": {
+					"description": "when ifBody is \"fitLine\", also apply it to \"if\" statements that have an \"else\" branch. false = don't compact if-with-else (better readability) true = apply fitLine regardless of else",
+					"default": false,
+					"type": "boolean"
 				},
 				"doWhile": {
 					"description": "same line policy for \"while\" part in \"do…while\" * same = place while and body on same line * next = place body on next line * keep = keep same / next line from source",
@@ -1122,7 +1127,7 @@
 					"default": "same"
 				},
 				"doWhileBody": {
-					"description": "same line policy for non block body of \"do…while\" * same = place function and body on same line * next = place body on next line * keep = keep same / next line from source",
+					"description": "same line policy for non block body of \"do…while\" * same = place function and body on same line * next = place body on next line * keep = keep same / next line from source * fitLine = same line if total line length fits within maxLineLength, otherwise next line",
 					"$ref": "#/definitions/formatter.config.SameLinePolicy",
 					"default": "next"
 				},
@@ -1141,24 +1146,19 @@
 					"default": "next"
 				},
 				"whileBody": {
-					"description": "same line policy for non block body of \"while\" (not \"do…while\") * same = place while and body on same line * next = place body on next line * keep = keep same / next line from source",
+					"description": "same line policy for non block body of \"while\" (not \"do…while\") * same = place while and body on same line * next = place body on next line * keep = keep same / next line from source * fitLine = same line if total line length fits within maxLineLength, otherwise next line",
 					"$ref": "#/definitions/formatter.config.SameLinePolicy",
 					"default": "next"
 				},
 				"forBody": {
-					"description": "same line policy for non block body of \"for\" * same = place function and body on same line * next = place body on next line * keep = keep same / next line from source",
+					"description": "same line policy for non block body of \"for\" * same = place function and body on same line * next = place body on next line * keep = keep same / next line from source * fitLine = same line if total line length fits within maxLineLength, otherwise next line",
 					"$ref": "#/definitions/formatter.config.SameLinePolicy",
 					"default": "next"
 				},
 				"functionBody": {
-					"description": "same line policy for non block body of \"function\" * same = place function and body on same line * next = place body on next line * keep = keep same / next line from source",
+					"description": "same line policy for non block body of \"function\" * same = place function and body on same line * next = place body on next line * keep = keep same / next line from source * fitLine = same line if total line length fits within maxLineLength, otherwise next line",
 					"$ref": "#/definitions/formatter.config.SameLinePolicy",
 					"default": "next"
-				},
-				"fitLineIfWithElse": {
-					"description": "When ifBody is fitLine, also apply it to if statements that have an else branch. false = don't compact if-with-else.",
-					"default": false,
-					"type": "boolean"
 				},
 				"ifElseSemicolonNextLine": {
 					"description": "Add new line after `if body` to `if (...) body; else ...` Don't touch `if (...) body else ...` or `if (...) {body} else ...`",
@@ -1347,6 +1347,10 @@
 				},
 				"metadataCallParameter": {
 					"description": "metadata call parameter wrapping rules",
+					"$ref": "#/definitions/formatter.config.WrapRules"
+				},
+				"conditionWrapping": {
+					"description": "wrapping rules for if/while/for condition parentheses",
 					"$ref": "#/definitions/formatter.config.WrapRules"
 				},
 				"arrayWrap": {

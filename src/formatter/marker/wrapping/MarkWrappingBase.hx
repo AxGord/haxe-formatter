@@ -981,6 +981,8 @@ class MarkWrappingBase extends MarkerBase {
 				"CallParameterWrapping";
 			case CasePatternWrapping:
 				"CasePatternWrapping";
+			case ConditionWrapping:
+				"ConditionWrapping";
 			case FunctionSignatureWrapping:
 				"FunctionSignatureWrapping";
 			case ImplementsWrapping:
@@ -997,6 +999,8 @@ class MarkWrappingBase extends MarkerBase {
 				"OpAddChainWrapping";
 			case OpBoolChainWrapping:
 				"OpBoolChainWrapping";
+			case TernaryWrapping:
+				"TernaryWrapping";
 			case TypeParameterWrapping:
 				"TypeParameterWrapping";
 		}
@@ -1020,6 +1024,7 @@ enum WrappingOrigin {
 	MapWrapping;
 	CallParameterWrapping;
 	CasePatternWrapping;
+	ConditionWrapping;
 	FunctionSignatureWrapping;
 	ImplementsWrapping;
 	MetadataCallParameterWrapping;
@@ -1027,5 +1032,6 @@ enum WrappingOrigin {
 	MultiVarWrapping;
 	OpAddChainWrapping;
 	OpBoolChainWrapping;
+	TernaryWrapping;
 	TypeParameterWrapping;
 }

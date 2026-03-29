@@ -1,0 +1,43 @@
+{
+	"wrapping": {
+		"maxLineLength": 80,
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		for (item in veryLongCollectionName.getFilteredItems(filterAlpha, filterBravo, filterCharlie)) {
+			doSomething();
+		}
+		for (item in list) {
+			doSomething();
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		for (
+			item in veryLongCollectionName.getFilteredItems(filterAlpha,
+				filterBravo, filterCharlie)
+		) {
+			doSomething();
+		}
+		for (item in list) {
+			doSomething();
+		}
+	}
+}
