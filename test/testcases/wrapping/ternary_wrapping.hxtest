@@ -1,0 +1,62 @@
+{
+	"wrapping": {
+		"maxLineLength": 120,
+		"ternaryExpression": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "onePerLineAfterFirst",
+					"location": "beforeLast"
+				}
+			]
+		},
+		"opBoolChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "onePerLineAfterFirst",
+					"location": "afterLast"
+				}
+			]
+		},
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function test():Void {
+		final icon:Image = folder ? new Image('people.svg', true, SHARE_FOLDER_WIDTH, SHARE_FOLDER_HEIGHT) : new Image('users.svg', true, SHARE_FILE_WIDTH, SHARE_FILE_HEIGHT);
+		final x:Int = cond ? 1 : 2;
+		return a != null && a.length != 0 ? doSomethingLong(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q) : false;
+		final y:Int = obj.lastIndexOf('/') != -1 ? createLongFunctionCall(paramA, paramB, paramC, paramD, paramE) : defaultValue;
+	}
+}
+
+---
+
+class Main {
+	static function test():Void {
+		final icon:Image = folder
+			? new Image('people.svg', true, SHARE_FOLDER_WIDTH, SHARE_FOLDER_HEIGHT)
+			: new Image('users.svg', true, SHARE_FILE_WIDTH, SHARE_FILE_HEIGHT);
+		final x:Int = cond ? 1 : 2;
+		return a != null && a.length != 0
+			? doSomethingLong(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q)
+			: false;
+		final y:Int = obj.lastIndexOf('/') != -1
+			? createLongFunctionCall(paramA, paramB, paramC, paramD, paramE)
+			: defaultValue;
+	}
+}

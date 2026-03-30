@@ -1,0 +1,38 @@
+{
+	"wrapping": {
+		"maxLineLength": 80,
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		var x = [for (user in users) if (!list.exists(user)) user.name];
+		if (conditionAlpha && conditionBravo && conditionCharlie && conditionDelta) {
+			doSomething();
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		var x = [for (user in users) if (!list.exists(user)) user.name];
+		if (
+			conditionAlpha && conditionBravo && conditionCharlie && conditionDelta
+		) {
+			doSomething();
+		}
+	}
+}

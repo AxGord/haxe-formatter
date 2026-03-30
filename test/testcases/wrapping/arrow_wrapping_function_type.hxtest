@@ -1,0 +1,32 @@
+{
+	"wrapping": {
+		"maxLineLength": 80,
+		"functionSignature": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	public function new(doWithFS:(cb:(fs:FileSystemInterface<Watcher>) -> Void) -> Void) {
+		doSomething();
+	}
+}
+
+---
+
+class Main {
+	public function new(
+		doWithFS:(cb:(fs:FileSystemInterface<Watcher>) -> Void) -> Void
+	) {
+		doSomething();
+	}
+}

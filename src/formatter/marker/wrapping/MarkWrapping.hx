@@ -5,6 +5,8 @@ import formatter.config.WrapConfig;
 class MarkWrapping extends MarkWrappingBase {
 	var conditionWraps:Array<TokenTree> = [];
 	var parenIndentWraps:Array<TokenTree> = [];
+	var ternaryWraps:Array<{itemStart:TokenTree, question:TokenTree, dblDot:TokenTree}> = [];
+	var arrowWraps:Array<TokenTree> = [];
 
 	public function run() {
 		var wrappableTokens:Array<TokenTree> = parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
@@ -51,6 +53,12 @@ class MarkWrapping extends MarkWrappingBase {
 					}
 				case Binop(OpArrow), Arrow:
 					wrapAfter(token, true);
+					if (calcLineLength(token) > config.wrapping.maxLineLength) {
+						var arrowType:Null<ArrowType> = TokenTreeCheckUtils.getArrowType(token);
+						if (arrowType == null || arrowType == ArrowFunction) {
+							arrowWraps.push(token);
+						}
+					}
 				case CommentLine(_):
 					wrapBefore(token, false);
 				default:
@@ -60,12 +68,15 @@ class MarkWrapping extends MarkWrappingBase {
 		markMethodChaining(parsedCode.root);
 		markMultiVarChaining();
 		markImplementsExtendsChaining();
+		markTernaryChaining();
 		markOpBoolChaining();
 		markOpAddChaining();
 		markCasePatternChaining();
-		markTernaryChaining();
 
 		applyWrappingQueue();
+		collapseChainWraps();
+		applyTernaryWrapping();
+		applyArrowWrapping();
 		applyConditionWrapping();
 		applyParenIndentWrapping();
 	}
@@ -521,6 +532,71 @@ class MarkWrapping extends MarkWrappingBase {
 		}
 	}
 
+	function applyArrowWrapping() {
+		for (token in arrowWraps) {
+			lineEndAfter(token);
+		}
+		for (token in arrowWraps) {
+			if (token.children == null) {
+				continue;
+			}
+			for (child in token.children) {
+				removeInnerArrowBreaks(child);
+				var lastToken:TokenTree = TokenTreeCheckUtils.getLastToken(child);
+				if (lastToken != null) {
+					unwrapBoolOps(child, lastToken);
+				}
+			}
+		}
+		// Collapse arrows that now fit, apply PClose for remaining
+		for (token in arrowWraps) {
+			if (!isNewLineAfter(token)) {
+				continue;
+			}
+			// Try collapse: remove break, check if line fits
+			noLineEndAfter(token);
+			if (calcLineLength(token) <= config.wrapping.maxLineLength) {
+				continue;
+			}
+			// Doesn't fit — restore break
+			lineEndAfter(token);
+			var parent:Null<TokenTree> = token.parent;
+			while (parent != null) {
+				switch (parent.tok) {
+					case POpen:
+						switch (TokenTreeCheckUtils.getPOpenType(parent)) {
+							case Call:
+								var pClose:Null<TokenTree> = getCloseToken(parent);
+								if (pClose != null) {
+									lineEndBefore(pClose);
+								}
+								break;
+							default:
+								parent = parent.parent;
+						}
+					default:
+						parent = parent.parent;
+				}
+			}
+		}
+	}
+
+	function removeInnerArrowBreaks(token:TokenTree) {
+		if (token.children == null) {
+			return;
+		}
+		for (child in token.children) {
+			switch (child.tok) {
+				case Binop(OpArrow), Arrow:
+					if (isNewLineAfter(child) && calcLineLength(child) <= config.wrapping.maxLineLength) {
+						noLineEndAfter(child);
+					}
+				default:
+			}
+			removeInnerArrowBreaks(child);
+		}
+	}
+
 	function applyConditionWrapping() {
 		for (token in conditionWraps) {
 			var pClose:Null<TokenTree> = getCloseToken(token);
@@ -528,6 +604,9 @@ class MarkWrapping extends MarkWrappingBase {
 				continue;
 			}
 			if (hasInnerParenWrapping(token, pClose)) {
+				continue;
+			}
+			if (calcLineLength(token) <= config.wrapping.maxLineLength) {
 				continue;
 			}
 			lineEndAfter(token);
@@ -562,79 +641,160 @@ class MarkWrapping extends MarkWrappingBase {
 	}
 
 	function markTernaryChaining() {
-		var chainStarts:Array<TokenTree> = parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
-			if (!token.hasChildren()) {
-				return SkipSubtree;
-			}
-			for (child in token.children) {
-				switch (child.tok) {
-					case Question:
-						return FoundGoDeeper;
-					default:
-				}
+		var ternaryTokens:Array<TokenTree> = parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
+			switch (token.tok) {
+				case Question:
+					if (token.hasChildren()) {
+						for (child in token.children) {
+							if (child.tok.match(DblDot)) {
+								return FoundGoDeeper;
+							}
+						}
+					}
+				default:
 			}
 			return GoDeeper;
 		});
-		for (chainStart in chainStarts) {
-			markSingleTernaryChain(chainStart);
+		for (question in ternaryTokens) {
+			markSingleTernaryChain(question);
 		}
 	}
 
-	function markSingleTernaryChain(itemStart:TokenTree) {
-		var items:Array<WrappableItem> = [];
-		var prev:Null<TokenInfo> = getPreviousToken(itemStart);
-		var chainStart:TokenTree = itemStart;
-		if (prev != null) {
-			chainStart = prev.token;
-		}
-		var chainEnd:Null<TokenTree> = itemStart.getLastChild();
-		if (chainEnd != null) {
-			chainEnd = TokenTreeCheckUtils.getLastToken(chainEnd);
-			switch (chainEnd.tok) {
-				case Semicolon, Comma, PClose:
-				default:
-					var next:Null<TokenInfo> = getNextToken(chainEnd);
-					if (next != null) {
-						chainEnd = next.token;
-					}
-			}
-		}
-		if (itemStart.children != null) {
-			var currentStart:TokenTree = itemStart;
-			for (child in itemStart.children) {
-				switch (child.tok) {
-					case Question:
-						// item: condition through ? operator
-						items.push(makeWrappableItem(currentStart, child));
-						var next:Null<TokenInfo> = getNextToken(child);
-						if (next != null) {
-							currentStart = next.token;
-						}
-					case DblDot:
-						// item: true-branch through : operator
-						items.push(makeWrappableItem(currentStart, child));
-						var next:Null<TokenInfo> = getNextToken(child);
-						if (next != null) {
-							currentStart = next.token;
-						}
-					default:
-				}
-			}
-			// last item: false-branch
-			items.push(makeWrappableItem(currentStart, TokenTreeCheckUtils.getLastToken(currentStart)));
-		}
-		if (items.length < 2) {
+	function markSingleTernaryChain(question:TokenTree) {
+		if (question.children == null) {
 			return;
 		}
-		queueWrapping({
-			origin: TernaryWrapping,
-			start: chainStart,
-			end: chainEnd,
-			items: items,
-			rules: config.wrapping.ternaryExpression,
-			useTrailing: false,
-			overrideAdditionalIndent: null
-		}, "markSingleTernaryChain");
+		var dblDot:Null<TokenTree> = null;
+		for (child in question.children) {
+			if (child.tok.match(DblDot)) {
+				dblDot = child;
+				break;
+			}
+		}
+		if (dblDot == null) {
+			return;
+		}
+		// Walk up to find the expression start (past operators, back to statement level)
+		var condToken:TokenTree = question.parent;
+		if (condToken == null) {
+			return;
+		}
+		while (condToken.parent != null) {
+			switch (condToken.parent.tok) {
+				case Binop(_), Const(_), Kwd(KwdNull), Kwd(KwdTrue), Kwd(KwdFalse), Dot, QuestionDot:
+					condToken = condToken.parent;
+				default:
+					break;
+			}
+		}
+		var items:Array<WrappableItem> = [];
+		items.push(makeWrappableItem(condToken, question));
+		var next:Null<TokenInfo> = getNextToken(question);
+		if (next != null) {
+			items.push(makeWrappableItem(next.token, dblDot));
+		}
+		var rule:WrapRule = determineWrapType2(config.wrapping.ternaryExpression, condToken, items);
+		if (rule.type != NoWrap && rule.type != Keep) {
+			ternaryWraps.push({itemStart: condToken, question: question, dblDot: dblDot});
+		}
+	}
+
+	function collapseChainWraps() {
+		parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
+			switch (token.tok) {
+				case Binop(OpBoolAnd), Binop(OpBoolOr), Binop(OpAdd), Binop(OpSub):
+					if (isNewLineBefore(token) && calcLineLength(token) <= config.wrapping.maxLineLength) {
+						noLineEndBefore(token);
+					}
+					var next:Null<TokenInfo> = getNextToken(token);
+					if (next != null && isNewLineBefore(next.token) && calcLineLength(next.token) <= config.wrapping.maxLineLength) {
+						noLineEndBefore(next.token);
+					}
+				default:
+			}
+			return GoDeeper;
+		});
+	}
+
+	function applyTernaryWrapping() {
+		for (wrap in ternaryWraps) {
+			lineEndBefore(wrap.question);
+			lineEndBefore(wrap.dblDot);
+			// After ternary breaks, unwrap condition (opBoolChain) and branches (callParameter)
+			// if they now fit on one line.
+			unwrapIfFits(wrap.itemStart, wrap.question);
+			unwrapTernaryBranchCalls(wrap.itemStart);
+			unwrapTernaryBranchCalls(wrap.question);
+			unwrapTernaryBranchCalls(wrap.dblDot);
+			// If entire ternary fits on one line after unwrapping, try collapse
+			noLineEndBefore(wrap.question);
+			noLineEndBefore(wrap.dblDot);
+			if (calcLineLength(wrap.itemStart) > config.wrapping.maxLineLength) {
+				// Doesn't fit — restore breaks
+				lineEndBefore(wrap.question);
+				lineEndBefore(wrap.dblDot);
+			}
+		}
+	}
+
+	function unwrapIfFits(from:TokenTree, to:TokenTree) {
+		if (isSameLineBetween(from, to, false)) {
+			return;
+		}
+		unwrapBoolOps(from, to);
+	}
+
+	function unwrapBoolOps(token:TokenTree, limit:TokenTree) {
+		if (token.children == null) {
+			return;
+		}
+		for (child in token.children) {
+			if (child.index >= limit.index) {
+				return;
+			}
+			switch (child.tok) {
+				case Binop(OpBoolAnd), Binop(OpBoolOr):
+					noLineEndBefore(child);
+					var next:Null<TokenInfo> = getNextToken(child);
+					if (next != null) {
+						noLineEndBefore(next.token);
+					}
+				default:
+			}
+			unwrapBoolOps(child, limit);
+		}
+	}
+
+	function unwrapTernaryBranchCalls(branchStart:TokenTree) {
+		if (branchStart.children == null) {
+			return;
+		}
+		for (child in branchStart.children) {
+			switch (child.tok) {
+				case POpen:
+					var pClose:Null<TokenTree> = getCloseToken(child);
+					if (pClose == null) {
+						continue;
+					}
+					if (isSameLineBetween(child, pClose, false)) {
+						continue;
+					}
+					// Re-evaluate: remove existing wrapping first
+					noWrappingBetween(child, pClose);
+					var lineLen:Int = calcLineLength(child);
+					if (lineLen <= config.wrapping.maxLineLength) {
+						// Fits on one line now — keep unwrapped
+						noLineEndBefore(pClose);
+					} else {
+						// Still too long — re-wrap with leading break
+						var items:Array<WrappableItem> = makeWrappableItems(child);
+						wrapFillLineWithLeading2AfterLast(child, pClose, items, config.wrapping.maxLineLength);
+						lineEndBefore(pClose);
+					}
+				default:
+					unwrapTernaryBranchCalls(child);
+			}
+		}
 	}
 
 	function markMethodChaining(startToken:Null<TokenTree>) {

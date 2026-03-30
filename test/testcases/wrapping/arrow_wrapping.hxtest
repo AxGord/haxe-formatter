@@ -1,0 +1,51 @@
+{
+	"wrapping": {
+		"maxLineLength": 100,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"functionSignature": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function test():Void {
+		!outer.exists((s:ShareUser) -> !inner.exists((d:ShareUser) -> (d.id != 0 && d.id == s.id) || d.email == s.email));
+		list.filter((item:Item) -> item.name == name);
+	}
+}
+
+---
+
+class Main {
+	static function test():Void {
+		!outer.exists((s:ShareUser) ->
+			!inner.exists((d:ShareUser) -> (d.id != 0 && d.id == s.id) || d.email == s.email)
+		);
+		list.filter((item:Item) -> item.name == name);
+	}
+}

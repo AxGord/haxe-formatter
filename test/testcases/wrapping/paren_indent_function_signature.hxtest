@@ -1,0 +1,40 @@
+{
+	"wrapping": {
+		"maxLineLength": 80,
+		"functionSignature": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "totalItemLength <= n", "value": 60}, {"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	private function longSignature(paramAlpha:String, paramBravo:String, paramCharlie:String):Void {
+		doSomething();
+	}
+
+	private function shortFunc(a:Int, b:Int):Void {
+		doSomething();
+	}
+}
+
+---
+
+class Main {
+	private function longSignature(
+		paramAlpha:String, paramBravo:String, paramCharlie:String
+	):Void {
+		doSomething();
+	}
+
+	private function shortFunc(a:Int, b:Int):Void {
+		doSomething();
+	}
+}

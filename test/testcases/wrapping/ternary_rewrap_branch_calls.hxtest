@@ -1,0 +1,46 @@
+{
+	"wrapping": {
+		"maxLineLength": 100,
+		"ternaryExpression": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "onePerLineAfterFirst",
+					"location": "beforeLast"
+				}
+			]
+		},
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function test():Void {
+		final icon:Image = folder ? new Image('people.svg', true, FOLDER_W, FOLDER_H) : new Image('users.svg', true, FILE_W, FILE_H);
+		final y:Data = obj.lastIndexOf('/') != -1 ? createData(paramA, paramB, paramC, paramD, paramE, paramF) : defaultValue;
+	}
+}
+
+---
+
+class Main {
+	static function test():Void {
+		final icon:Image = folder
+			? new Image('people.svg', true, FOLDER_W, FOLDER_H)
+			: new Image('users.svg', true, FILE_W, FILE_H);
+		final y:Data = obj.lastIndexOf('/') != -1
+			? createData(paramA, paramB, paramC, paramD, paramE, paramF)
+			: defaultValue;
+	}
+}

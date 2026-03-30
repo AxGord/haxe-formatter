@@ -1,0 +1,34 @@
+{
+	"wrapping": {
+		"maxLineLength": 80,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		final item:Null<Data> = folders.find((item:FileSystemItemData) -> path.startsWith(item.filePath + '/'));
+		doShort(1, 2);
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		final item:Null<Data> = folders.find(
+			(item:FileSystemItemData) -> path.startsWith(item.filePath + '/')
+		);
+		doShort(1, 2);
+	}
+}

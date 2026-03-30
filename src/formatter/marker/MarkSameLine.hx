@@ -60,6 +60,10 @@ class MarkSameLine extends MarkerBase {
 				if (parent.parent.tok.match(Kwd(KwdFor))) {
 					return isExpression(parent);
 				}
+				var prev:Null<TokenTree> = token.previousSibling;
+				if (prev != null && prev.tok.match(Binop(OpAssign))) {
+					return true;
+				}
 			case Kwd(KwdMacro):
 				return isExpression(parent);
 			case Arrow:

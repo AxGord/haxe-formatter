@@ -1,0 +1,35 @@
+{
+	"wrapping": {
+		"maxLineLength": 100,
+		"ternaryExpression": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "onePerLineAfterFirst",
+					"location": "beforeLast"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function test():Void {
+		return prefix + ' ' + (condA != null && condA.length != 0 ? getValue(condA[0], false) : 'unknown') + suffix;
+		final icon:Image = folder ? new Image('people.svg', true, FOLDER_WIDTH, FOLDER_HEIGHT) : new Image('users.svg', true, FILE_WIDTH, FILE_HEIGHT);
+	}
+}
+
+---
+
+class Main {
+	static function test():Void {
+		return prefix + ' ' + (condA != null && condA.length != 0 ? getValue(condA[0], false) : 'unknown') + suffix;
+		final icon:Image = folder
+			? new Image('people.svg', true, FOLDER_WIDTH, FOLDER_HEIGHT)
+			: new Image('users.svg', true, FILE_WIDTH, FILE_HEIGHT);
+	}
+}
