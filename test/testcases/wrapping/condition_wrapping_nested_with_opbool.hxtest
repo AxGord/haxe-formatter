@@ -36,10 +36,10 @@
 
 class Main {
 	static function main() {
-		if (checkCondition(user, share) && !result.exists((u:ShareUser) -> (u.id != 0 && u.id == user.id) || u.email == user.email)) {
+		if (validateParams(user, share) && !result.exists((u:GroupUser) -> (u.id != 0 && u.id == user.id) || u.email == user.email)) {
 			doSomething();
 		}
-		if (!sessionLostList.exists((s:ShareUser) -> (s.id != 0 && s.id == ds.id) || s.email == ds.email)) {
+		if (!removedUserList.exists((s:GroupUser) -> (s.id != 0 && s.id == ds.id) || s.email == ds.email)) {
 			doSomething();
 		}
 	}
@@ -49,14 +49,14 @@ class Main {
 
 class Main {
 	static function main() {
-		if (checkCondition(user, share) && !result.exists(
-			(u:ShareUser) ->
+		if (validateParams(user, share) && !result.exists(
+			(u:GroupUser) ->
 				(u.id != 0 && u.id == user.id) || u.email == user.email
 		)) {
 			doSomething();
 		}
-		if (!sessionLostList.exists(
-			(s:ShareUser) -> (s.id != 0 && s.id == ds.id) || s.email == ds.email
+		if (!removedUserList.exists(
+			(s:GroupUser) -> (s.id != 0 && s.id == ds.id) || s.email == ds.email
 		)) {
 			doSomething();
 		}

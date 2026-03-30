@@ -43,7 +43,7 @@
 
 class Main {
 	static function test():Void {
-		if (!addedUsers.list.exists((u:ShareUser) -> u.email == user.Email && u.active))
+		if (!validItems.list.exists((u:GroupUser) -> u.email == user.label && u.active))
 			doSomething(user);
 	}
 }
@@ -52,11 +52,9 @@ class Main {
 
 class Main {
 	static function test():Void {
-		if (
-			!addedUsers.list.exists((u:ShareUser) ->
-				u.email == user.Email && u.active
-			)
-		)
+		if (!validItems.list.exists((u:GroupUser) ->
+			u.email == user.label && u.active
+		))
 			doSomething(user);
 	}
 }

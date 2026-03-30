@@ -55,7 +55,7 @@ class MarkWrapping extends MarkWrappingBase {
 					wrapAfter(token, true);
 					if (calcLineLength(token) > config.wrapping.maxLineLength) {
 						var arrowType:Null<ArrowType> = TokenTreeCheckUtils.getArrowType(token);
-						if (arrowType == null || arrowType == ArrowFunction) {
+						if (arrowType != OldFunctionType) {
 							arrowWraps.push(token);
 						}
 					}
@@ -75,9 +75,9 @@ class MarkWrapping extends MarkWrappingBase {
 
 		applyWrappingQueue();
 		applyTernaryWrapping();
+		applyArrowWrapping();
 		applyConditionWrapping();
 		collapseChainWraps();
-		applyArrowWrapping();
 		applyParenIndentWrapping();
 	}
 
@@ -498,11 +498,54 @@ class MarkWrapping extends MarkWrappingBase {
 		if ((token.children == null) || (token.children.length <= 0)) {
 			return;
 		}
+		var pClose:Null<TokenTree> = getCloseToken(token);
+		if (pClose == null) {
+			return;
+		}
+		// Skip if line exceeds only due to trailing comment — code itself fits
+		if (calcLineLengthNoComment(token) <= config.wrapping.maxLineLength) {
+			return;
+		}
 		var items:Array<WrappableItem> = makeWrappableItems(token);
 		var rule:WrapRule = determineWrapType2(config.wrapping.conditionWrapping, token, items);
 		if (rule.type != NoWrap && rule.type != Keep) {
 			conditionWraps.push(token);
 		}
+	}
+
+	/** calcLineLength excluding trailing line comment. */
+	function calcLineLengthNoComment(token:TokenTree):Int {
+		var len:Int = calcLineLength(token);
+		// Walk forward from token to find CommentLine on same line
+		var idx:Int = token.index;
+		while (idx < parsedCode.tokenList.tokens.length) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			if (info.token.tok.match(CommentLine(_))) {
+				len -= info.text.length;
+				// Also subtract the space before comment
+				var prev:Null<TokenInfo> = parsedCode.tokenList.tokens[idx - 2];
+				if (prev != null && prev.spacesAfter > 0) len -= prev.spacesAfter;
+				break;
+			}
+			if (info.whitespaceAfter == Newline) break;
+		}
+		return len;
+	}
+
+	/** Check if token is inside or is a Call POpen. */
+	function isInsideCallParen(token:TokenTree):Bool {
+		var current:Null<TokenTree> = token;
+		while (current != null) {
+			switch (current.tok) {
+				case POpen:
+					return TokenTreeCheckUtils.getPOpenType(current) == Call;
+				default:
+					current = current.parent;
+			}
+		}
+		return false;
 	}
 
 	function isComprehension(pOpen:TokenTree):Bool {
@@ -545,6 +588,7 @@ class MarkWrapping extends MarkWrappingBase {
 				var lastToken:TokenTree = TokenTreeCheckUtils.getLastToken(child);
 				if (lastToken != null) {
 					unwrapBoolOps(child, lastToken);
+					unwrapAddOps(child, lastToken);
 				}
 			}
 		}
@@ -606,9 +650,112 @@ class MarkWrapping extends MarkWrappingBase {
 			if (hasInnerParenWrapping(token, pClose)) {
 				continue;
 			}
+			if (hasInnerArrowBreak(token, pClose) && calcLineLength(token) <= config.wrapping.maxLineLength) {
+				continue;
+			}
+			// Re-check: outer wrapping (callParameter) may have shortened the line.
+			// Only skip if no inner breaks at all (chain OR other wrapping inside condition = keep wrapping).
+			if (!hasNonChainBreaks(token, pClose)) {
+				var breaksBefore:Array<TokenTree> = [];
+				var breaksAfter:Array<TokenTree> = [];
+				collectChainBreaks(token, pClose, breaksBefore, breaksAfter);
+				if (breaksBefore.length == 0 && breaksAfter.length == 0 && calcLineLengthNoComment(token) <= config.wrapping.maxLineLength) {
+					continue;
+				}
+			}
+			// Apply condition wrapping + collapse inner chains if all fit on one line
 			lineEndAfter(token);
 			lineEndBefore(pClose);
+			tryFullCollapseCondition(token, pClose);
 		}
+	}
+
+	/**
+	 * After condition wrapping, try to undo it if the full condition (with all chain breaks removed)
+	 * fits on one line. Also collapses inner chain breaks that fit.
+	 */
+	function tryFullCollapseCondition(open:TokenTree, close:TokenTree) {
+		// Collect inner chain breaks
+		var breaksBefore:Array<TokenTree> = [];
+		var breaksAfter:Array<TokenTree> = [];
+		collectChainBreaks(open, close, breaksBefore, breaksAfter);
+		// Only attempt full collapse if there are no other (non-chain) breaks inside
+		if (hasNonChainBreaks(open, close)) {
+			// Inner wrapping (callParameter, arrow, etc.) — just try collapsing chain breaks
+			if (breaksBefore.length > 0 || breaksAfter.length > 0) {
+				for (token in breaksBefore) noLineEndBefore(token);
+				for (token in breaksAfter) noLineEndAfter(token);
+				var measureToken:TokenTree = breaksAfter.length > 0 ? breaksAfter[0] : breaksBefore[0];
+				if (calcLineLength(measureToken) <= config.wrapping.maxLineLength) return;
+				for (token in breaksBefore) lineEndBefore(token);
+				for (token in breaksAfter) lineEndAfter(token);
+			}
+			return;
+		}
+		// No inner breaks — try full collapse (condition wrapping + chain breaks)
+		noLineEndAfter(open);
+		noLineEndBefore(close);
+		for (token in breaksBefore) noLineEndBefore(token);
+		for (token in breaksAfter) noLineEndAfter(token);
+		if (calcLineLength(open) <= config.wrapping.maxLineLength) return;
+		// Doesn't fit — restore condition wrapping
+		lineEndAfter(open);
+		lineEndBefore(close);
+		// Try collapsing just chain breaks
+		if (breaksBefore.length > 0 || breaksAfter.length > 0) {
+			var measureToken:TokenTree = breaksAfter.length > 0 ? breaksAfter[0] : breaksBefore[0];
+			if (calcLineLength(measureToken) <= config.wrapping.maxLineLength) return;
+			for (token in breaksBefore) lineEndBefore(token);
+			for (token in breaksAfter) lineEndAfter(token);
+		}
+	}
+
+	function hasNonChainBreaks(open:TokenTree, close:TokenTree):Bool {
+		var idx:Int = open.index + 1;
+		while (idx < close.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			if (info.whitespaceAfter != Newline) continue;
+			switch (info.token.tok) {
+				case Binop(OpBoolAnd), Binop(OpBoolOr), Binop(OpAdd), Binop(OpSub):
+					continue;
+				default:
+					return true;
+			}
+		}
+		return false;
+	}
+
+	function collectChainBreaks(open:TokenTree, close:TokenTree, breaksBefore:Array<TokenTree>, breaksAfter:Array<TokenTree>) {
+		var idx:Int = open.index;
+		while (idx < close.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			switch (info.token.tok) {
+				case Binop(OpBoolAnd), Binop(OpBoolOr), Binop(OpAdd), Binop(OpSub):
+					if (isNewLineBefore(info.token)) breaksBefore.push(info.token);
+					if (info.whitespaceAfter == Newline) breaksAfter.push(info.token);
+				default:
+			}
+		}
+	}
+
+	/** Check if there's an arrow break inside the condition (from arrow wrapping). */
+	function hasInnerArrowBreak(open:TokenTree, close:TokenTree):Bool {
+		var idx:Int = open.index;
+		while (idx < close.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			switch (info.token.tok) {
+				case Arrow, Binop(OpArrow):
+					if (info.whitespaceAfter == Newline) return true;
+				default:
+			}
+		}
+		return false;
 	}
 
 	function hasInnerParenWrapping(open:TokenTree, close:TokenTree):Bool {
@@ -716,9 +863,6 @@ class MarkWrapping extends MarkWrappingBase {
 		if (!isNewLineBefore(token)) {
 			return;
 		}
-		if (isInsideConditionWrap(token)) {
-			return;
-		}
 		// Temporarily remove break to measure combined line length
 		noLineEndBefore(token);
 		if (calcLineLength(token) <= config.wrapping.maxLineLength) {
@@ -741,9 +885,9 @@ class MarkWrapping extends MarkWrappingBase {
 
 	function applyTernaryWrapping() {
 		for (wrap in ternaryWraps) {
-			resolveSoftWraps(wrap.itemStart);
 			lineEndBefore(wrap.question);
 			lineEndBefore(wrap.dblDot);
+			resolveSoftWraps(wrap.itemStart);
 			unwrapIfFits(wrap.itemStart, wrap.question);
 			unwrapTernaryBranchCalls(wrap.itemStart);
 			unwrapTernaryBranchCalls(wrap.question);
@@ -814,6 +958,27 @@ class MarkWrapping extends MarkWrappingBase {
 				default:
 			}
 			unwrapBoolOps(child, limit);
+		}
+	}
+
+	function unwrapAddOps(token:TokenTree, limit:TokenTree) {
+		if (token.children == null) {
+			return;
+		}
+		for (child in token.children) {
+			if (child.index >= limit.index) {
+				return;
+			}
+			switch (child.tok) {
+				case Binop(OpAdd), Binop(OpSub):
+					noLineEndBefore(child);
+					var next:Null<TokenInfo> = getNextToken(child);
+					if (next != null) {
+						noLineEndBefore(next.token);
+					}
+				default:
+			}
+			unwrapAddOps(child, limit);
 		}
 	}
 

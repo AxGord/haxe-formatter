@@ -25,6 +25,7 @@
 
 ---
 
+
 class Main {
 	static function main() {
 		if (veryLongConditionA && veryLongConditionB && veryLongConditionC && veryLongConditionD) {
@@ -38,9 +39,7 @@ class Main {
 class Main {
 	static function main() {
 		if (
-			veryLongConditionA
-			&& veryLongConditionB
-			&& veryLongConditionC
+			veryLongConditionA && veryLongConditionB && veryLongConditionC
 			&& veryLongConditionD
 		) {
 			doSomething();

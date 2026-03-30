@@ -11,10 +11,10 @@ class Main {
 		switch (1) {
 			case 1:
 				if (true) {
-					final selected:Int = 1;
+					final resolved:Int = 1;
 					final level:Int = 2;
-					final selectedParent:Int = 3;
-					_fileList.selectedItemPath = !groupByOwner && level == 2 && selectedParent != null ? selectedParent.filePath : selected.filePath;
+					final resolvedParent:Int = 3;
+					_viewList.currentEntryPath = !sortByColumn && level == 2 && resolvedParent != null ? resolvedParent.nodePath : resolved.nodePath;
 				}
 		}
 	}
@@ -27,12 +27,12 @@ class Main {
 		switch (1) {
 			case 1:
 				if (true) {
-					final selected:Int = 1;
+					final resolved:Int = 1;
 					final level:Int = 2;
-					final selectedParent:Int = 3;
-					_fileList.selectedItemPath = !groupByOwner && level == 2 && selectedParent != null
-						? selectedParent.filePath
-						: selected.filePath;
+					final resolvedParent:Int = 3;
+					_viewList.currentEntryPath = !sortByColumn && level == 2 && resolvedParent != null
+						? resolvedParent.nodePath
+						: resolved.nodePath;
 				}
 		}
 	}

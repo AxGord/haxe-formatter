@@ -1,0 +1,24 @@
+{
+	"wrapping": {"maxLineLength": 80},
+	"sameLine": {"ifBody": "fitLine"}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (condition) doSomething();
+		// next line comment should not affect previous line
+		doOther();
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (condition) doSomething();
+		// next line comment should not affect previous line
+		doOther();
+	}
+}

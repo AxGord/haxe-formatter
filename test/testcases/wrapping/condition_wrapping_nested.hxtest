@@ -26,7 +26,7 @@
 
 class Main {
 	static function main() {
-		if (!list.exists((item:FileSystemItemData) -> path.startsWith(item.filePath + '/'))) {
+		if (!list.exists((item:TreeNodeEntityData) -> path.startsWith(item.nodePath + '/'))) {
 			doSomething();
 		}
 		if (shortCond) {
@@ -40,7 +40,7 @@ class Main {
 class Main {
 	static function main() {
 		if (!list.exists(
-			(item:FileSystemItemData) -> path.startsWith(item.filePath + '/')
+			(item:TreeNodeEntityData) -> path.startsWith(item.nodePath + '/')
 		)) {
 			doSomething();
 		}

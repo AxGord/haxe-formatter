@@ -15,6 +15,7 @@
 
 ---
 
+
 class Main {
 	static function main() {
 		var x = [for (user in users) if (!list.exists(user)) user.name];
@@ -30,9 +31,7 @@ class Main {
 	static function main() {
 		var x = [for (user in users) if (!list.exists(user)) user.name];
 		if (
-			conditionAlpha
-			&& conditionBravo
-			&& conditionCharlie
+			conditionAlpha && conditionBravo && conditionCharlie
 			&& conditionDelta
 		) {
 			doSomething();

@@ -58,6 +58,19 @@ class MarkSameLine extends MarkerBase {
 				return true;
 			case BrOpen:
 				if (parent.parent.tok.match(Kwd(KwdFor))) {
+					// Comprehension if with else and no {} body = expression-if (returns value)
+					// Comprehension if without else = filter (use ifBody policy)
+					// Comprehension if with {} body = regular if-else (not expression)
+					if (token.tok.match(Kwd(KwdIf))) {
+						var body:Null<TokenTree> = getBodyAfterCondition(token);
+						if (body != null && body.tok.match(BrOpen)) return false;
+						var hasElse:Bool = false;
+						if (token.children != null) {
+							for (child in token.children)
+								if (child.tok.match(Kwd(KwdElse))) { hasElse = true; break; }
+						}
+						return hasElse;
+					}
 					return isExpression(parent);
 				}
 				var prev:Null<TokenTree> = token.previousSibling;
@@ -197,6 +210,11 @@ class MarkSameLine extends MarkerBase {
 					markBodyAfterPOpen(token, Keep, config.sameLine.expressionIfWithBlocks);
 					return;
 				case Next:
+					// Arrow body if: use ifBody (fitLine) instead of expressionIf (next)
+					if (token.parent != null && token.parent.tok.match(Arrow)) {
+						markBodyAfterPOpen(token, resolveFitLine(token, config.sameLine.ifBody), false);
+						return;
+					}
 					markBodyAfterPOpen(token, Next, config.sameLine.expressionIfWithBlocks);
 					var prev:Null<TokenInfo> = getPreviousToken(token);
 					if ((prev != null) && (prev.token.tok.match(Kwd(KwdElse)))) {
@@ -246,6 +264,10 @@ class MarkSameLine extends MarkerBase {
 						markBody(token, Next, config.sameLine.expressionIfWithBlocks);
 					}
 					lineEndBefore(token);
+					var prev:Null<TokenInfo> = getPreviousToken(token);
+					if (prev != null && prev.token.tok.match(BrClose)) {
+						applySameLinePolicyChained(token, config.sameLine.ifBody, config.sameLine.ifElse);
+					}
 					return;
 				case FitLine:
 			}
@@ -657,6 +679,27 @@ class MarkSameLine extends MarkerBase {
 			}
 		}
 
+		// Phase 3: if full line exceeds only due to trailing comment AND body has
+		// wrappable content (call with params, nested keyword), keep Same — let wrapping handle it.
+		// For simple bodies (return, assignment), Next is better for readability.
+		// Phase 3: if full line exceeds only due to trailing comment AND body is
+		// a call/expression (not simple return/throw), keep Same — callParameter wrapping handles it.
+		if (lastToken != null && lastToken.tok.match(CommentLine(_)) && body != null) {
+			var isSimpleBody:Bool = switch (body.tok) {
+				case Kwd(KwdReturn), Kwd(KwdThrow), Kwd(KwdBreak), Kwd(KwdContinue): true;
+				case _: false;
+			};
+			if (!isSimpleBody) {
+				var codeLastToken:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(keyword);
+				if (codeLastToken != null) {
+					var codeLen:Int = calcLengthBetween(keyword, codeLastToken) + calcTokenLength(codeLastToken);
+					if ((indentLen + codeLen) <= config.wrapping.maxLineLength) {
+						return Same;
+					}
+				}
+			}
+		}
+
 		return Next;
 	}
 
@@ -687,6 +730,11 @@ class MarkSameLine extends MarkerBase {
 		var last:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(token);
 		if (last == null) {
 			return null;
+		}
+		// Include trailing line comment on same line — fitLine should account for visual line length
+		var next:Null<TokenInfo> = getNextToken(last);
+		if (next != null && next.token.tok.match(CommentLine(_)) && parsedCode.isOriginalSameLine(last, next.token)) {
+			last = next.token;
 		}
 		// Walk tokens from keyword forward; if we hit a BrOpen that is a block, the first line ends at '{'
 		var current:Null<TokenTree> = token;

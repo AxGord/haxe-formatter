@@ -15,6 +15,7 @@
 
 ---
 
+
 class Main {
 	static function main() {
 		while (conditionAlpha && conditionBravo && conditionCharlie && conditionDelta && conditionEcho) {
@@ -31,11 +32,8 @@ class Main {
 class Main {
 	static function main() {
 		while (
-			conditionAlpha
-			&& conditionBravo
-			&& conditionCharlie
-			&& conditionDelta
-			&& conditionEcho
+			conditionAlpha && conditionBravo && conditionCharlie
+			&& conditionDelta && conditionEcho
 		) {
 			doSomething();
 		}

@@ -1,0 +1,27 @@
+{
+	"sameLine": {
+		"expressionIf": "next"
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		final x:Int = if (cond) { doA(); valA; } else { doB(); valB; };
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		final x:Int = if (cond) {
+			doA();
+			valA;
+		} else {
+			doB();
+			valB;
+		};
+	}
+}

@@ -1,0 +1,25 @@
+{
+	"wrapping": {"maxLineLength": 140,
+		"conditionWrapping": {"defaultWrap": "fillLineWithLeadingBreak", "rules": [
+			{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"}
+		]}
+	},
+	"sameLine": {"ifBody": "fitLine"}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (inputPath == AppConfig.READONLY_PARAM || inputPath.startsWith(AppConfig.READONLY_PARAM_SLASH)) return null; // Operation not available on this resource
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (inputPath == AppConfig.READONLY_PARAM || inputPath.startsWith(AppConfig.READONLY_PARAM_SLASH))
+			return null; // Operation not available on this resource
+	}
+}

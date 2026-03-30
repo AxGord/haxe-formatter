@@ -875,11 +875,22 @@ class MarkWrappingBase extends MarkerBase {
 			case NoWrap:
 				switch (origin) {
 					case OpBoolChainWrapping, OpAddChainWrapping, MethodChainWrapping, MultiVarWrapping, CasePatternWrapping:
-						// Chain wrapping spans across expression boundaries — don't remove
-						// pre-existing line breaks (e.g. from sameLine expressionIf: "next").
+						// Chain NoWrap: don't touch anything — other wrappings (callParameter)
+						// may have set soft wraps that need to be preserved.
 					case _:
 						noWrappingBetween(open, close, false);
 				}
+		}
+	}
+
+	function clearSoftWraps(open:TokenTree, close:TokenTree) {
+		if (open == null || close == null) return;
+		var idx:Int = open.index;
+		while (idx < close.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			info.wrapAfter = false;
 		}
 	}
 
@@ -890,6 +901,33 @@ class MarkWrappingBase extends MarkerBase {
 	}
 
 	public function applyWrappingPlace(place:WrappingPlace) {
+		// Skip OpSub-only chains inside call parameters when callParameter already wrapped
+		// (any wrapping style — fillLine, fillLineWithLeadingBreak, etc.).
+		// If callParameter didn't wrap (single param noWrap), let opSub chain handle it.
+		// OpAdd chains (string concat) are always kept as valid split points.
+		switch (place.origin) {
+			case OpAddChainWrapping:
+				if (place.start != null && place.start.tok.match(POpen)) {
+					var pType:Null<POpenType> = TokenTreeCheckUtils.getPOpenType(place.start);
+					if (pType == Call) {
+						var hasAdd:Bool = false;
+						for (item in place.items) if (item.last.tok.match(Binop(OpAdd))) { hasAdd = true; break; }
+						if (!hasAdd) {
+							// Check if callParameter placed any breaks inside
+							var pClose:Null<TokenTree> = getCloseToken(place.start);
+							if (pClose != null) {
+								var idx:Int = place.start.index;
+								while (idx < pClose.index) {
+									var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+									idx++;
+									if (info != null && info.whitespaceAfter == Newline) return;
+								}
+							}
+						}
+					}
+				}
+			case _:
+		}
 		var rule:WrapRule = determineWrapType2(place.rules, place.start, place.items);
 		var additionalIndent:Int = rule.additionalIndent;
 		if (place.overrideAdditionalIndent != null) {

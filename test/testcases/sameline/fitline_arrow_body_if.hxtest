@@ -1,0 +1,20 @@
+{
+	"wrapping": {"maxLineLength": 140},
+	"sameLine": {"ifBody": "fitLine", "expressionIf": "next"}
+}
+
+---
+
+class Main {
+	static function main() {
+		rootNode.iterateChilds(item -> if (processNodeItem(item, false, true)) modified = true);
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		rootNode.iterateChilds(item -> if (processNodeItem(item, false, true)) modified = true);
+	}
+}
