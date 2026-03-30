@@ -896,6 +896,11 @@ class MarkWrappingBase extends MarkerBase {
 			additionalIndent = place.overrideAdditionalIndent;
 		}
 		applyRule(place.origin, rule, place.start, place.end, place.items, additionalIndent, place.useTrailing);
+		// After fillLineWithLeadingBreak, immediately move PClose to its own line
+		// so inner items see correct line length (without trailing close parens).
+		if (rule.type == FillLineWithLeadingBreak && place.end != null && isNewLineAfter(place.start)) {
+			lineEndBefore(place.end);
+		}
 	}
 
 	function queueWrapping(place:WrappingPlace, name:String) {

@@ -49,12 +49,10 @@ class Main {
 
 class Main {
 	static function main() {
-		if (
-			checkCondition(user, share) &&
-			!result.exists(
-				(u:ShareUser) -> (u.id != 0 && u.id == user.id) || u.email == user.email
-			)
-		) {
+		if (checkCondition(user, share) && !result.exists(
+			(u:ShareUser) ->
+				(u.id != 0 && u.id == user.id) || u.email == user.email
+		)) {
 			doSomething();
 		}
 		if (!sessionLostList.exists(

@@ -53,7 +53,9 @@ class Main {
 class Main {
 	static function test():Void {
 		if (
-			!addedUsers.list.exists((u:ShareUser) -> u.email == user.Email && u.active)
+			!addedUsers.list.exists((u:ShareUser) ->
+				u.email == user.Email && u.active
+			)
 		)
 			doSomething(user);
 	}

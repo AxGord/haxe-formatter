@@ -74,9 +74,9 @@ class MarkWrapping extends MarkWrappingBase {
 		markCasePatternChaining();
 
 		applyWrappingQueue();
-		collapseChainWraps();
 		applyTernaryWrapping();
 		applyConditionWrapping();
+		collapseChainWraps();
 		applyArrowWrapping();
 		applyParenIndentWrapping();
 	}
@@ -716,6 +716,9 @@ class MarkWrapping extends MarkWrappingBase {
 		if (!isNewLineBefore(token)) {
 			return;
 		}
+		if (isInsideConditionWrap(token)) {
+			return;
+		}
 		// Temporarily remove break to measure combined line length
 		noLineEndBefore(token);
 		if (calcLineLength(token) <= config.wrapping.maxLineLength) {
@@ -723,6 +726,17 @@ class MarkWrapping extends MarkWrappingBase {
 		}
 		// Doesn't fit — restore break
 		lineEndBefore(token);
+	}
+
+	/** Check if token is between an applied condition wrapping POpen and its PClose. */
+	function isInsideConditionWrap(token:TokenTree):Bool {
+		for (open in conditionWraps) {
+			if (!isNewLineAfter(open)) continue;
+			if (token.index <= open.index) continue;
+			var close:Null<TokenTree> = getCloseToken(open);
+			if (close != null && token.index < close.index) return true;
+		}
+		return false;
 	}
 
 	function applyTernaryWrapping() {

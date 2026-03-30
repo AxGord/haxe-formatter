@@ -1,0 +1,32 @@
+{
+	"wrapping": {
+		"maxLineLength": 140
+	},
+	"sameLine": {
+		"ifBody": "fitLine",
+		"expressionIf": "next"
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		_state = if (items.length == 0) State.NOT_AVAILABLE; else if (!_store.available) API.isLoggedIn() && !API.shareAllowedForCurrentRole ? State.BANNER : State.NOT_AVAILABLE; else if (items.exists(_store.load)) State.LOADING; else State.NOT_AVAILABLE;
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		_state = if (items.length == 0)
+			State.NOT_AVAILABLE;
+		else if (!_store.available)
+			API.isLoggedIn() && !API.shareAllowedForCurrentRole ? State.BANNER : State.NOT_AVAILABLE;
+		else if (items.exists(_store.load))
+			State.LOADING;
+		else
+			State.NOT_AVAILABLE;
+	}
+}

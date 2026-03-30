@@ -1,0 +1,30 @@
+{
+	"wrapping": {
+		"maxLineLength": 80
+	},
+	"sameLine": {
+		"ifBody": "fitLine",
+		"expressionIf": "next"
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		final x:Int = if (condA) veryLongBodyA && condB ? resultA : resultB; else if (condC) veryLongBodyC && condD ? resultC : resultD; else defaultResult;
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		final x:Int = if (condA)
+			veryLongBodyA && condB ? resultA : resultB;
+		else if (condC)
+			veryLongBodyC && condD ? resultC : resultD;
+		else
+			defaultResult;
+	}
+}
