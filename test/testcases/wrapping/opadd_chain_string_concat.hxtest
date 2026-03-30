@@ -1,0 +1,30 @@
+{
+	"wrapping": {
+		"maxLineLength": 140,
+		"opAddSubChain": {
+			"defaultWrap": "onePerLine",
+			"defaultLocation": "beforeLast",
+			"rules": []
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		return '${DIC_KEY_DELIMITER}ctrl1:${topRightPointX - 7.5},$topRightPointY' + '${DIC_KEY_DELIMITER}ctrl2:${bottomLeftPointX + xMul * bottomGrayPointOffsetX},${bottomLeftPointY + yMul * bottomGrayPointOffsetY + 7.5}' + '${DIC_KEY_DELIMITER}ctrl3:${bottomLeftPointX + xMul * bottomRedPointOffsetX},${bottomLeftPointY + bottomRedPointOffsetY}' + '${DIC_KEY_DELIMITER}ctrl4:${bottomLeftPointX + xMul * bottomGreenPointOffsetX},${bottomLeftPointY + bottomGreenPointOffsetY}';
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		return
+			'${DIC_KEY_DELIMITER}ctrl1:${topRightPointX - 7.5},$topRightPointY'
+			+ '${DIC_KEY_DELIMITER}ctrl2:${bottomLeftPointX + xMul * bottomGrayPointOffsetX},${bottomLeftPointY + yMul * bottomGrayPointOffsetY + 7.5}'
+			+ '${DIC_KEY_DELIMITER}ctrl3:${bottomLeftPointX + xMul * bottomRedPointOffsetX},${bottomLeftPointY + bottomRedPointOffsetY}'
+			+ '${DIC_KEY_DELIMITER}ctrl4:${bottomLeftPointX + xMul * bottomGreenPointOffsetX},${bottomLeftPointY + bottomGreenPointOffsetY}';
+	}
+}

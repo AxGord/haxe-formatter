@@ -703,17 +703,29 @@ class MarkWrapping extends MarkWrappingBase {
 		parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
 			switch (token.tok) {
 				case Binop(OpBoolAnd), Binop(OpBoolOr), Binop(OpAdd), Binop(OpSub):
-					if (isNewLineBefore(token) && calcLineLength(token) <= config.wrapping.maxLineLength) {
-						noLineEndBefore(token);
-					}
+					tryCollapseBreakBefore(token);
 					var next:Null<TokenInfo> = getNextToken(token);
-					if (next != null && isNewLineBefore(next.token) && calcLineLength(next.token) <= config.wrapping.maxLineLength) {
-						noLineEndBefore(next.token);
+					if (next != null) {
+						tryCollapseBreakBefore(next.token);
 					}
 				default:
 			}
 			return GoDeeper;
 		});
+	}
+
+	/** Remove line break before token only if the combined line would still fit. */
+	function tryCollapseBreakBefore(token:TokenTree) {
+		if (!isNewLineBefore(token)) {
+			return;
+		}
+		// Temporarily remove break to measure combined line length
+		noLineEndBefore(token);
+		if (calcLineLength(token) <= config.wrapping.maxLineLength) {
+			return; // fits — keep collapsed
+		}
+		// Doesn't fit — restore break
+		lineEndBefore(token);
 	}
 
 	function applyTernaryWrapping() {
@@ -1006,7 +1018,8 @@ class MarkWrapping extends MarkWrappingBase {
 						if (next == null) {
 							return;
 						}
-						itemStart = next.token;
+						// Descend into operator's children to find more chained operators
+						itemStart = collectOpBoolItems(child, items, next.token);
 					default:
 						continue;
 				}
@@ -1075,6 +1088,13 @@ class MarkWrapping extends MarkWrappingBase {
 			if (!token.hasChildren()) {
 				return SkipSubtree;
 			}
+			// Skip operators that are children of another operator —
+			// they will be collected recursively by their parent chain.
+			switch (token.tok) {
+				case Binop(OpAdd), Binop(OpSub):
+					return SkipSubtree;
+				default:
+			}
 			for (child in token.children) {
 				switch (child.tok) {
 					case Binop(OpAdd), Binop(OpSub):
@@ -1129,22 +1149,11 @@ class MarkWrapping extends MarkWrappingBase {
 			return;
 		}
 		var itemStart:TokenTree = next.token;
-		if (itemContainer.children != null) {
-			for (child in itemContainer.children) {
-				switch (child.tok) {
-					case Binop(OpAdd), Binop(OpSub):
-						items.push(makeWrappableItem(itemStart, child));
-						var next:Null<TokenInfo> = getNextToken(child);
-						if (next == null) {
-							continue;
-						}
-						itemStart = next.token;
-					default:
-						continue;
-				}
-			}
+		var lastItemStart:TokenTree = collectOpAddItems(itemContainer, items, itemStart);
+		items.push(makeWrappableItem(lastItemStart, TokenTreeCheckUtils.getLastToken(lastItemStart)));
+		if (items.length <= 1) {
+			return;
 		}
-		items.push(makeWrappableItem(itemStart, TokenTreeCheckUtils.getLastToken(itemStart)));
 		queueWrapping({
 			origin: OpAddChainWrapping,
 			start: chainStart,
@@ -1154,6 +1163,60 @@ class MarkWrapping extends MarkWrappingBase {
 			useTrailing: false,
 			overrideAdditionalIndent: null
 		}, "markSingleOpAddChain");
+
+		// Clear wrapAfter on chain operators — chain wrapping manages line breaks.
+		// Without this, the first-pass wrapAfter(OpAdd, true) creates a second break
+		// after the operator, putting + on its own line.
+		for (item in items) {
+			switch (item.last.tok) {
+				case Binop(OpAdd), Binop(OpSub):
+					wrapAfter(item.last, false);
+				default:
+			}
+		}
+	}
+
+	/** Recursively collect OpBoolAnd/OpBoolOr chain items, descending through nested operators. */
+	function collectOpBoolItems(node:TokenTree, items:Array<WrappableItem>, itemStart:TokenTree):TokenTree {
+		if (node.children == null) {
+			return itemStart;
+		}
+		for (child in node.children) {
+			switch (child.tok) {
+				case Binop(OpBoolAnd), Binop(OpBoolOr):
+					items.push(makeWrappableItem(itemStart, child));
+					var next:Null<TokenInfo> = getNextToken(child);
+					if (next == null) {
+						continue;
+					}
+					itemStart = collectOpBoolItems(child, items, next.token);
+				default:
+					continue;
+			}
+		}
+		return itemStart;
+	}
+
+	/** Recursively collect OpAdd/OpSub chain items, descending through nested operators. */
+	function collectOpAddItems(node:TokenTree, items:Array<WrappableItem>, itemStart:TokenTree):TokenTree {
+		if (node.children == null) {
+			return itemStart;
+		}
+		for (child in node.children) {
+			switch (child.tok) {
+				case Binop(OpAdd), Binop(OpSub):
+					items.push(makeWrappableItem(itemStart, child));
+					var next:Null<TokenInfo> = getNextToken(child);
+					if (next == null) {
+						continue;
+					}
+					// Descend into the operator's children to find more chained operators
+					itemStart = collectOpAddItems(child, items, next.token);
+				default:
+					continue;
+			}
+		}
+		return itemStart;
 	}
 
 	function findOpAddItemStart(itemStart:TokenTree):TokenTree {

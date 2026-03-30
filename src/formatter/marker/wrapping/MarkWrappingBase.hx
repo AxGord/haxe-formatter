@@ -682,6 +682,12 @@ class MarkWrappingBase extends MarkerBase {
 		var count:Int = 0;
 		for (item in items) {
 			count++;
+			// Check line length at each item — a comment or forced break
+			// can split the chain across lines, hiding long continuations.
+			var itemLineLen:Int = calcLineLength(item.first);
+			if (itemLineLen > lineLength) {
+				lineLength = itemLineLen;
+			}
 			totalItemLength += item.firstLineLength + item.lastLineLength;
 			if (item.multiline) {
 				hasMultiLineItem = true;
