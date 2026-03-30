@@ -606,9 +606,6 @@ class MarkWrapping extends MarkWrappingBase {
 			if (hasInnerParenWrapping(token, pClose)) {
 				continue;
 			}
-			if (calcLineLength(token) <= config.wrapping.maxLineLength) {
-				continue;
-			}
 			lineEndAfter(token);
 			lineEndBefore(pClose);
 		}
@@ -681,7 +678,7 @@ class MarkWrapping extends MarkWrappingBase {
 		}
 		while (condToken.parent != null) {
 			switch (condToken.parent.tok) {
-				case Binop(_), Const(_), Kwd(KwdNull), Kwd(KwdTrue), Kwd(KwdFalse), Dot, QuestionDot:
+				case Binop(_), Unop(_), Const(_), Kwd(KwdNull), Kwd(KwdTrue), Kwd(KwdFalse), Dot, QuestionDot:
 					condToken = condToken.parent;
 				default:
 					break;
@@ -733,8 +730,6 @@ class MarkWrapping extends MarkWrappingBase {
 			resolveSoftWraps(wrap.itemStart);
 			lineEndBefore(wrap.question);
 			lineEndBefore(wrap.dblDot);
-			// After ternary breaks, unwrap condition (opBoolChain) and branches (callParameter)
-			// if they now fit on one line.
 			unwrapIfFits(wrap.itemStart, wrap.question);
 			unwrapTernaryBranchCalls(wrap.itemStart);
 			unwrapTernaryBranchCalls(wrap.question);
@@ -743,7 +738,6 @@ class MarkWrapping extends MarkWrappingBase {
 			noLineEndBefore(wrap.question);
 			noLineEndBefore(wrap.dblDot);
 			if (calcLineLength(wrap.itemStart) > config.wrapping.maxLineLength) {
-				// Doesn't fit — restore breaks
 				lineEndBefore(wrap.question);
 				lineEndBefore(wrap.dblDot);
 			}

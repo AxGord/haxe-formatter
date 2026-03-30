@@ -201,6 +201,7 @@ class MarkSameLine extends MarkerBase {
 					var prev:Null<TokenInfo> = getPreviousToken(token);
 					if ((prev != null) && (prev.token.tok.match(Kwd(KwdElse)))) {
 						applySameLinePolicy(token, config.sameLine.elseIf);
+						wrapBefore(token, false);
 					}
 					return;
 				case FitLine:

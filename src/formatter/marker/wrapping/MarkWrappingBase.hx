@@ -873,7 +873,13 @@ class MarkWrappingBase extends MarkerBase {
 						wrapFillLine2BeforeLast(open, close, items, config.wrapping.maxLineLength, addIndent, useTrailing);
 				}
 			case NoWrap:
-				noWrappingBetween(open, close, false);
+				switch (origin) {
+					case OpBoolChainWrapping, OpAddChainWrapping, MethodChainWrapping, MultiVarWrapping, CasePatternWrapping:
+						// Chain wrapping spans across expression boundaries — don't remove
+						// pre-existing line breaks (e.g. from sameLine expressionIf: "next").
+					case _:
+						noWrappingBetween(open, close, false);
+				}
 		}
 	}
 
