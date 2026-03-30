@@ -76,8 +76,8 @@ class MarkWrapping extends MarkWrappingBase {
 		applyWrappingQueue();
 		collapseChainWraps();
 		applyTernaryWrapping();
-		applyArrowWrapping();
 		applyConditionWrapping();
+		applyArrowWrapping();
 		applyParenIndentWrapping();
 	}
 
@@ -718,6 +718,7 @@ class MarkWrapping extends MarkWrappingBase {
 
 	function applyTernaryWrapping() {
 		for (wrap in ternaryWraps) {
+			resolveSoftWraps(wrap.itemStart);
 			lineEndBefore(wrap.question);
 			lineEndBefore(wrap.dblDot);
 			// After ternary breaks, unwrap condition (opBoolChain) and branches (callParameter)
@@ -734,6 +735,37 @@ class MarkWrapping extends MarkWrappingBase {
 				lineEndBefore(wrap.question);
 				lineEndBefore(wrap.dblDot);
 			}
+		}
+	}
+
+	/**
+	 * Resolve wrapAfter flags to hard Newline on the line containing the token.
+	 * When the full line exceeds maxLineLength, resolve the first wrapAfter
+	 * on the line — it's the highest-level operator producing the best split.
+	 */
+	function resolveSoftWraps(token:TokenTree) {
+		if (calcLineLength(token) <= config.wrapping.maxLineLength) {
+			return;
+		}
+		// Walk backward to line start, remembering the farthest wrapAfter
+		var firstWrap:Null<TokenTree> = null;
+		var idx:Int = token.index - 1;
+		while (idx >= 0) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			if (info == null) {
+				idx--;
+				continue;
+			}
+			if (info.whitespaceAfter == Newline) {
+				break;
+			}
+			if (info.wrapAfter) {
+				firstWrap = info.token;
+			}
+			idx--;
+		}
+		if (firstWrap != null) {
+			lineEndAfter(firstWrap);
 		}
 	}
 

@@ -1,0 +1,60 @@
+{
+	"wrapping": {
+		"maxLineLength": 80,
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"functionSignature": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function test():Void {
+		if (!addedUsers.list.exists((u:ShareUser) -> u.email == user.Email && u.active))
+			doSomething(user);
+	}
+}
+
+---
+
+class Main {
+	static function test():Void {
+		if (
+			!addedUsers.list.exists((u:ShareUser) -> u.email == user.Email && u.active)
+		)
+			doSomething(user);
+	}
+}

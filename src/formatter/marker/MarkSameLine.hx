@@ -196,7 +196,14 @@ class MarkSameLine extends MarkerBase {
 				case Keep:
 					markBodyAfterPOpen(token, Keep, config.sameLine.expressionIfWithBlocks);
 					return;
-				case Next | FitLine:
+				case Next:
+					markBodyAfterPOpen(token, Next, config.sameLine.expressionIfWithBlocks);
+					var prev:Null<TokenInfo> = getPreviousToken(token);
+					if ((prev != null) && (prev.token.tok.match(Kwd(KwdElse)))) {
+						applySameLinePolicy(token, config.sameLine.elseIf);
+					}
+					return;
+				case FitLine:
 			}
 		}
 		markBodyAfterPOpen(token, resolveFitLine(token, config.sameLine.ifBody), false);
@@ -232,7 +239,14 @@ class MarkSameLine extends MarkerBase {
 						applySameLinePolicyChained(token, Keep, Keep);
 					}
 					return;
-				case Next | FitLine:
+				case Next:
+					var body:Null<TokenTree> = token.access().firstChild().token;
+					if (body == null || !body.tok.match(Kwd(KwdIf))) {
+						markBody(token, Next, config.sameLine.expressionIfWithBlocks);
+					}
+					lineEndBefore(token);
+					return;
+				case FitLine:
 			}
 		}
 
