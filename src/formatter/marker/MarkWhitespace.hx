@@ -544,7 +544,7 @@ class MarkWhitespace extends MarkerBase {
 	}
 
 	function markArrow(token:TokenTree) {
-		var arrowType:Null<ArrowType> = TokenTreeCheckUtils.getArrowType(token);
+		var arrowType:Null<ArrowType> = try TokenTreeCheckUtils.getArrowType(token) catch (e:Any) null;
 		if (arrowType == null) {
 			arrowType = ArrowFunction;
 		}

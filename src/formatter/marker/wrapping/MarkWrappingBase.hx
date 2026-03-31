@@ -943,14 +943,25 @@ class MarkWrappingBase extends MarkerBase {
 						var hasAdd:Bool = false;
 						for (item in place.items) if (item.last.tok.match(Binop(OpAdd))) { hasAdd = true; break; }
 						if (!hasAdd) {
-							// Check if callParameter placed any breaks inside
 							var pClose:Null<TokenTree> = getCloseToken(place.start);
 							if (pClose != null) {
+								// Check if callParameter placed any breaks inside
+								var hasBreak:Bool = false;
 								var idx:Int = place.start.index;
 								while (idx < pClose.index) {
 									var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
 									idx++;
-									if (info != null && info.whitespaceAfter == Newline) return;
+									if (info != null && info.whitespaceAfter == Newline) {
+										hasBreak = true;
+										break;
+									}
+								}
+								if (hasBreak) return;
+								// No breaks but line exceeds: wrap as fillLineWithLeadingBreak
+								if (calcLineLength(place.start) > config.wrapping.maxLineLength) {
+									lineEndAfter(place.start);
+									lineEndBefore(pClose);
+									return;
 								}
 							}
 						}
