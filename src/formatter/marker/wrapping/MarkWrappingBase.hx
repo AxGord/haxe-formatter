@@ -880,10 +880,36 @@ class MarkWrappingBase extends MarkerBase {
 					case OpBoolChainWrapping, OpAddChainWrapping, MethodChainWrapping, MultiVarWrapping, CasePatternWrapping:
 						// Chain NoWrap: don't touch anything — other wrappings (callParameter)
 						// may have set soft wraps that need to be preserved.
+					case CallParameterWrapping:
+						noWrappingBetween(open, close, false);
 					case _:
 						noWrappingBetween(open, close, false);
 				}
 		}
+	}
+
+	/** Check if there are Dot tokens preceded by PClose between open and close — method chain pattern. */
+	function hasMethodChainDots(open:TokenTree, close:TokenTree):Bool {
+		var idx:Int = open.index + 1;
+		var depth:Int = 0;
+		while (idx < close.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			switch (info.token.tok) {
+				case POpen, BkOpen, BrOpen:
+					depth++;
+				case PClose, BkClose, BrClose:
+					depth--;
+				case Dot:
+					if (depth == 0) {
+						var prev:Null<TokenInfo> = parsedCode.tokenList.tokens[idx - 2];
+						if (prev != null && prev.token.tok.match(PClose)) return true;
+					}
+				default:
+			}
+		}
+		return false;
 	}
 
 	function clearSoftWraps(open:TokenTree, close:TokenTree) {

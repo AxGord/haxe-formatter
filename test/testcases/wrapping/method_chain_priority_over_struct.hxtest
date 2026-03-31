@@ -1,0 +1,31 @@
+{
+	"wrapping": {
+		"maxLineLength": 120
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		final a:ShareSetBaseActionPayload = {
+			addActions: action.addActions != null ? action.addActions.coach.filter(ShareUtil.notMixed)
+				.map(u -> {email: u.email, canEdit: u.access == EDIT })
+				.concat(action.addActions.outside.filter(ShareUtil.notMixed)
+					.map(u -> {email: u.email, canEdit: u.access == EDIT })) : null,
+		};
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		final a:ShareSetBaseActionPayload = {
+			addActions: action.addActions != null ? action.addActions.coach.filter(ShareUtil.notMixed)
+				.map(u -> {email: u.email, canEdit: u.access == EDIT})
+				.concat(action.addActions.outside.filter(ShareUtil.notMixed)
+					.map(u -> {email: u.email, canEdit: u.access == EDIT})) : null,
+		};
+	}
+}

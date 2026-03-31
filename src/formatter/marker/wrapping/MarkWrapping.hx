@@ -87,6 +87,7 @@ class MarkWrapping extends MarkWrappingBase {
 		applyConditionWrapping();
 		applyExpressionWrapping();
 		collapseChainWraps();
+		breakLongMethodChains();
 		applyParenIndentWrapping();
 	}
 
@@ -938,6 +939,20 @@ class MarkWrapping extends MarkWrappingBase {
 			// Collapse opAdd/opSub breaks on the line(s) after PClose
 			collapseChainBreaksAfter(pClose);
 		}
+	}
+
+	/** Post-queue: break long lines at method chain Dots (Dot preceded by PClose). */
+	function breakLongMethodChains() {
+		parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
+			switch (token.tok) {
+				case Dot:
+					if (calcLineLength(token) > config.wrapping.maxLineLength && isDotAfterPClose(token) && !isNewLineBefore(token)) {
+						lineEndBefore(token);
+					}
+				default:
+			}
+			return GoDeeper;
+		});
 	}
 
 	/** Remove opAdd/opSub chain breaks between open and close tokens. */
