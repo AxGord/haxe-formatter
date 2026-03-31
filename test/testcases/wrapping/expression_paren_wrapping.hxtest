@@ -1,0 +1,48 @@
+{
+	"wrapping": {
+		"maxLineLength": 120,
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"opAddSubChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "beforeLast"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		obj.y = (Dimensions.FILE_LIST_GRID_ITEM_HEIGHT - Dimensions.FILE_LIST_GRID_CLOUDICON_SHARED_FOLDER_BOTTOM_PADDING - obj.height) / 2 - Dimensions.FILE_LIST_GRID_CLOUDICON_SHARED_FOLDER_USER_Y_OFFSET * 2;
+		var short = (a + b) / 2;
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		obj.y = (
+			Dimensions.FILE_LIST_GRID_ITEM_HEIGHT - Dimensions.FILE_LIST_GRID_CLOUDICON_SHARED_FOLDER_BOTTOM_PADDING - obj.height
+		) / 2 - Dimensions.FILE_LIST_GRID_CLOUDICON_SHARED_FOLDER_USER_Y_OFFSET * 2;
+		var short = (a + b) / 2;
+	}
+}

@@ -1333,8 +1333,16 @@
 					"description": "object literal wrapping rules",
 					"$ref": "#/definitions/formatter.config.WrapRules"
 				},
+				"expressionWrapping": {
+					"description": "wrapping rules for expression parentheses: (expr)",
+					"$ref": "#/definitions/formatter.config.WrapRules"
+				},
 				"opBoolChain": {
 					"description": "OpBool chain wrapping rules",
+					"$ref": "#/definitions/formatter.config.WrapRules"
+				},
+				"ternaryExpression": {
+					"description": "wrapping rules for ternary operator (? :)",
 					"$ref": "#/definitions/formatter.config.WrapRules"
 				},
 				"opAddSubChain": {

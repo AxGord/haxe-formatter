@@ -1,0 +1,28 @@
+{
+	"wrapping": {
+		"maxLineLength": 80
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		sprite.graphics.drawRoundRect(6 * totalScaleX - 0.5, 6 * totalScaleY - 0.5,
+			(Dimensions.FILE_LIST_GRID_ITEM_WIDTH - 12) * totalScaleX + 0.5,
+			(Dimensions.FILE_LIST_GRID_ITEM_HEIGHT - 12) * totalScaleY + 0.5, radius * totalScaleX, radius * totalScaleY
+		);
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		sprite.graphics.drawRoundRect(6 * totalScaleX - 0.5,
+			6 * totalScaleY - 0.5,
+			(Dimensions.FILE_LIST_GRID_ITEM_WIDTH - 12) * totalScaleX + 0.5,
+			(Dimensions.FILE_LIST_GRID_ITEM_HEIGHT - 12) * totalScaleY + 0.5,
+			radius * totalScaleX, radius * totalScaleY);
+	}
+}

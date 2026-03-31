@@ -490,6 +490,16 @@ typedef WrapConfig = {
 	var conditionWrapping:WrapRules;
 
 	/**
+		wrapping rules for expression parentheses: (expr)
+	**/
+	@:default({
+		defaultWrap: NoWrap,
+		rules: []
+	})
+	@:optional
+	var expressionWrapping:WrapRules;
+
+	/**
 		wrapping rules for ternary operator (? :)
 	**/
 	@:default({

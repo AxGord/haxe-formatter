@@ -1084,6 +1084,8 @@ class MarkWrappingBase extends MarkerBase {
 				"CasePatternWrapping";
 			case ConditionWrapping:
 				"ConditionWrapping";
+			case ExpressionWrapping:
+				"ExpressionWrapping";
 			case FunctionSignatureWrapping:
 				"FunctionSignatureWrapping";
 			case ImplementsWrapping:
@@ -1126,6 +1128,7 @@ enum WrappingOrigin {
 	CallParameterWrapping;
 	CasePatternWrapping;
 	ConditionWrapping;
+	ExpressionWrapping;
 	FunctionSignatureWrapping;
 	ImplementsWrapping;
 	MetadataCallParameterWrapping;

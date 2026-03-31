@@ -1,0 +1,54 @@
+{
+	"wrapping": {
+		"maxLineLength": 120,
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		return {
+			coach: [
+				for (user in users) if (!added.exists((u:CoachUser) -> u.email == user.Email))
+					({
+						firstname: user.Firstname,
+						lastname: user.Lastname,
+						id: user.UserId,
+						email: user.Email,
+						access: VIEW,
+						image: user.Image
+					})
+			]
+		};
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		return {
+			coach: [
+				for (user in users)
+					if (!added.exists((u:CoachUser) -> u.email == user.Email)) ({
+						firstname: user.Firstname,
+						lastname: user.Lastname,
+						id: user.UserId,
+						email: user.Email,
+						access: VIEW,
+						image: user.Image
+					})
+			]
+		};
+	}
+}

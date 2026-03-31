@@ -1,0 +1,22 @@
+{
+	"wrapping": {
+		"maxLineLength": 100
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		var result = items.filter(ShareUtil.notMixed).map(u -> {email: u.email, canEdit: u.access == EDIT});
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		var result = items.filter(ShareUtil.notMixed)
+			.map(u -> {email: u.email, canEdit: u.access == EDIT});
+	}
+}

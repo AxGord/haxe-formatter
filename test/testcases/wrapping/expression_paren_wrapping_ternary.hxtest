@@ -1,0 +1,48 @@
+{
+	"wrapping": {
+		"maxLineLength": 120,
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"opAddSubChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "beforeLast"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		bitmapSprite.y = Dimensions.ITEM_HEIGHT - image.height - (folder ? sharedFolder ? Dimensions.SHARED_FOLDER_BOTTOM : Dimensions.FOLDER_BOTTOM : Dimensions.BOTTOM);
+		var short = (a + b) / 2;
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		bitmapSprite.y = Dimensions.ITEM_HEIGHT - image.height - (
+			folder ? sharedFolder ? Dimensions.SHARED_FOLDER_BOTTOM : Dimensions.FOLDER_BOTTOM : Dimensions.BOTTOM
+		);
+		var short = (a + b) / 2;
+	}
+}

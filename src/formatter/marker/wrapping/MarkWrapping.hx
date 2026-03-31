@@ -4,6 +4,7 @@ import formatter.config.WrapConfig;
 
 class MarkWrapping extends MarkWrappingBase {
 	var conditionWraps:Array<TokenTree> = [];
+	var expressionWraps:Array<TokenTree> = [];
 	var parenIndentWraps:Array<TokenTree> = [];
 	var ternaryWraps:Array<{itemStart:TokenTree, question:TokenTree, dblDot:TokenTree}> = [];
 	var arrowWraps:Array<TokenTree> = [];
@@ -84,6 +85,7 @@ class MarkWrapping extends MarkWrappingBase {
 		applyTernaryWrapping();
 		applyArrowWrapping();
 		applyConditionWrapping();
+		applyExpressionWrapping();
 		collapseChainWraps();
 		applyParenIndentWrapping();
 	}
@@ -274,6 +276,7 @@ class MarkWrapping extends MarkWrappingBase {
 			case SharpCondition:
 			case Catch:
 			case Expression:
+				wrapExpressionParen(token);
 		}
 	}
 
@@ -541,6 +544,58 @@ class MarkWrapping extends MarkWrappingBase {
 		return len;
 	}
 
+	function wrapExpressionParen(token:TokenTree) {
+		if (config.wrapping.expressionWrapping.rules.length == 0) {
+			return;
+		}
+		if ((token.children == null) || (token.children.length <= 0)) {
+			return;
+		}
+		var pClose:Null<TokenTree> = getCloseToken(token);
+		if (pClose == null) {
+			return;
+		}
+		// Measure hypothetical line: indent + prefix (tokens before POpen) + content span (POpen..PClose).
+		// Can't use calcLineLength — it sees short lines from pre-existing formatting.
+		var indent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(token));
+		var prefixLength:Int = calcLineLengthBefore(token);
+		var contentLength:Int = calcSpanLength(token, pClose);
+		// Skip short content — wrapping small grouping parens (e.g. `(a && b)`) is not useful.
+		if (contentLength < Std.int(config.wrapping.maxLineLength / 2)) {
+			return;
+		}
+		// Skip disambiguation parens around struct literals: ({field: value})
+		// The ( is just a parser hint, not a meaningful grouping to wrap.
+		if (token.children[0].tok.match(BrOpen)) {
+			return;
+		}
+		if (indent + prefixLength + contentLength > config.wrapping.maxLineLength) {
+			expressionWraps.push(token);
+		}
+	}
+
+	/** Sum token text lengths + spaces from start to end (inclusive), ignoring newlines. */
+	function calcSpanLength(start:TokenTree, end:TokenTree):Int {
+		var length:Int = 0;
+		var idx:Int = start.index;
+		while (idx <= end.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			length += info.text.length;
+			if (idx <= end.index) {
+				switch (info.whitespaceAfter) {
+					case Space:
+						length += info.spacesAfter;
+					case Newline:
+						length += 1; // Count newline as single space
+					case None:
+				}
+			}
+		}
+		return length;
+	}
+
 	/** Check if token is inside or is a Call POpen. */
 	function isInsideCallParen(token:TokenTree):Bool {
 		var current:Null<TokenTree> = token;
@@ -608,6 +663,14 @@ class MarkWrapping extends MarkWrappingBase {
 			noLineEndAfter(token);
 			if (calcLineLength(token) <= config.wrapping.maxLineLength) {
 				continue;
+			}
+			// Short struct body (u -> {email: ...}): keep collapsed — method chain will handle the line.
+			// calcLineLength may overestimate because method chain breaks haven't been finalized yet.
+			if (token.children != null && token.children.length > 0 && token.children[0].tok.match(BrOpen)) {
+				var brClose:Null<TokenTree> = getCloseToken(token.children[0]);
+				if (brClose != null && calcSpanLength(token, brClose) < Std.int(config.wrapping.maxLineLength / 2)) {
+					continue;
+				}
 			}
 			// Doesn't fit — restore break
 			lineEndAfter(token);
@@ -849,6 +912,67 @@ class MarkWrapping extends MarkWrappingBase {
 		var rule:WrapRule = determineWrapType2(config.wrapping.ternaryExpression, condToken, items);
 		if (rule.type != NoWrap && rule.type != Keep) {
 			ternaryWraps.push({itemStart: condToken, question: question, dblDot: dblDot});
+		}
+	}
+
+	function applyExpressionWrapping() {
+		for (token in expressionWraps) {
+			var pClose:Null<TokenTree> = getCloseToken(token);
+			if (pClose == null) {
+				continue;
+			}
+			lineEndAfter(token);
+			lineEndBefore(pClose);
+			// Collapse opAdd/opSub chain breaks inside the wrapped parens — expression wrapping handles the content.
+			collapseInnerChainBreaks(token, pClose);
+			// Try to collapse opAdd/opSub breaks around this expression paren.
+			// After expression wrapping, lines before ( and after ) may be short enough to fit.
+			var prev:Null<TokenInfo> = getPreviousToken(token);
+			if (prev != null) {
+				switch (prev.token.tok) {
+					case Binop(OpAdd), Binop(OpSub):
+						tryCollapseBreakBefore(prev.token);
+					default:
+				}
+			}
+			// Collapse opAdd/opSub breaks on the line(s) after PClose
+			collapseChainBreaksAfter(pClose);
+		}
+	}
+
+	/** Remove opAdd/opSub chain breaks between open and close tokens. */
+	function collapseInnerChainBreaks(open:TokenTree, close:TokenTree) {
+		var idx:Int = open.index + 1;
+		while (idx < close.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			switch (info.token.tok) {
+				case Binop(OpAdd), Binop(OpSub):
+					if (isNewLineBefore(info.token)) noLineEndBefore(info.token);
+					if (info.whitespaceAfter == Newline) noLineEndAfter(info.token);
+				default:
+			}
+		}
+	}
+
+	/** Walk forward from token, collapsing opAdd/opSub breaks that now fit after expression wrapping. */
+	function collapseChainBreaksAfter(token:TokenTree) {
+		var idx:Int = token.index + 1;
+		var limit:Int = Std.int(Math.min(idx + 20, parsedCode.tokenList.tokens.length));
+		while (idx < limit) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			switch (info.token.tok) {
+				case Binop(OpAdd), Binop(OpSub):
+					tryCollapseBreakBefore(info.token);
+					var next:Null<TokenInfo> = getNextToken(info.token);
+					if (next != null) tryCollapseBreakBefore(next.token);
+				case Semicolon:
+					return;
+				default:
+			}
 		}
 	}
 
@@ -1531,8 +1655,11 @@ class MarkWrapping extends MarkWrappingBase {
 				switch (type) {
 					case At:
 						return;
-					case Parameter:
 					case Call:
+						// Multi-argument calls: skip opAdd chain, let callParameter wrap at commas.
+						// Single-argument calls: opAdd chain is the only way to break long arithmetic.
+						if (hasCommasBetween(chainStart)) return;
+					case Parameter:
 					case SwitchCondition:
 					case WhileCondition:
 					case IfCondition:
@@ -1628,6 +1755,30 @@ class MarkWrapping extends MarkWrappingBase {
 			}
 		}
 		return itemStart;
+	}
+
+	/** Check if there are any Comma tokens between an open and close token (multi-argument call). */
+	function hasCommasBetween(openToken:TokenTree):Bool {
+		var closeToken:Null<TokenTree> = getCloseToken(openToken);
+		if (closeToken == null) return false;
+		// Walk token list between open and close, tracking nesting depth
+		var depth:Int = 0;
+		var idx:Int = openToken.index + 1;
+		while (idx < closeToken.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			switch (info.token.tok) {
+				case POpen, BkOpen, BrOpen:
+					depth++;
+				case PClose, BkClose, BrClose:
+					depth--;
+				case Comma:
+					if (depth == 0) return true;
+				default:
+			}
+		}
+		return false;
 	}
 
 	function findOpAddItemStart(itemStart:TokenTree):TokenTree {

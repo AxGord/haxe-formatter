@@ -1,0 +1,37 @@
+{
+	"wrapping": {
+		"maxLineLength": 120,
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (checkSessionUsersForStopSharing(sessionUser, lostShare) && !result.exists((u:FileSystemItemShareUser) -> (u.id != 0 && u.id == sessionUser.id) || u.email == sessionUser.email)) {
+			doSomething();
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (checkSessionUsersForStopSharing(sessionUser, lostShare)
+			&& !result.exists((u:FileSystemItemShareUser) ->
+				(u.id != 0 && u.id == sessionUser.id) || u.email == sessionUser.email
+			)) {
+				doSomething();
+		}
+	}
+}

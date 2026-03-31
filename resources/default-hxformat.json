@@ -884,6 +884,10 @@
 			],
 			"defaultWrap": "noWrap"
 		},
+		"expressionWrapping": {
+			"rules": [],
+			"defaultWrap": "noWrap"
+		},
 		"mapWrap": {
 			"rules": [
 				{
