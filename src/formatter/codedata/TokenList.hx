@@ -301,7 +301,6 @@ class TokenList {
 		if (info == null) {
 			return;
 		}
-
 		switch (info.whitespaceAfter) {
 			case None:
 				#if debugLog

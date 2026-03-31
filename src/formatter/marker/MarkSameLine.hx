@@ -66,8 +66,12 @@ class MarkSameLine extends MarkerBase {
 						if (body != null && body.tok.match(BrOpen)) return false;
 						var hasElse:Bool = false;
 						if (token.children != null) {
-							for (child in token.children)
-								if (child.tok.match(Kwd(KwdElse))) { hasElse = true; break; }
+							for (child in token.children) {
+								if (child.tok.match(Kwd(KwdElse))) {
+									hasElse = true;
+									break;
+								}
+							}
 						}
 						return hasElse;
 					}

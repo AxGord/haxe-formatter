@@ -1,2 +1,11 @@
 {
+	"sameLine": {
+		"ifBody": "same",
+		"elseBody": "same",
+		"forBody": "same",
+		"whileBody": "same",
+		"doWhileBody": "same",
+		"tryBody": "same",
+		"catchBody": "same"
+	}
 }

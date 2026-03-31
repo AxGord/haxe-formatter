@@ -941,7 +941,12 @@ class MarkWrappingBase extends MarkerBase {
 					var pType:Null<POpenType> = TokenTreeCheckUtils.getPOpenType(place.start);
 					if (pType == Call) {
 						var hasAdd:Bool = false;
-						for (item in place.items) if (item.last.tok.match(Binop(OpAdd))) { hasAdd = true; break; }
+						for (item in place.items) {
+							if (item.last.tok.match(Binop(OpAdd))) {
+								hasAdd = true;
+								break;
+							}
+						}
 						if (!hasAdd) {
 							var pClose:Null<TokenTree> = getCloseToken(place.start);
 							if (pClose != null) {

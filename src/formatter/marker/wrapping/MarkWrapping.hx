@@ -7,6 +7,7 @@ class MarkWrapping extends MarkWrappingBase {
 	var parenIndentWraps:Array<TokenTree> = [];
 	var ternaryWraps:Array<{itemStart:TokenTree, question:TokenTree, dblDot:TokenTree}> = [];
 	var arrowWraps:Array<TokenTree> = [];
+	var sharpChainExtensions:Array<TokenTree> = [];
 
 	public function run() {
 		var wrappableTokens:Array<TokenTree> = parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
@@ -74,6 +75,12 @@ class MarkWrapping extends MarkWrappingBase {
 		markCasePatternChaining();
 
 		applyWrappingQueue();
+		// Fix indent for chain items added by extendChainAcrossSharp:
+		// these tokens are at a shallower tree depth than the chain's original items,
+		// so they need extra indent to align with the chain.
+		for (token in sharpChainExtensions) {
+			additionalIndent(token, 1);
+		}
 		applyTernaryWrapping();
 		applyArrowWrapping();
 		applyConditionWrapping();
@@ -659,7 +666,9 @@ class MarkWrapping extends MarkWrappingBase {
 				var breaksBefore:Array<TokenTree> = [];
 				var breaksAfter:Array<TokenTree> = [];
 				collectChainBreaks(token, pClose, breaksBefore, breaksAfter);
-				if (breaksBefore.length == 0 && breaksAfter.length == 0 && calcLineLengthNoComment(token) <= config.wrapping.maxLineLength) {
+				if (breaksBefore.length == 0
+					&& breaksAfter.length == 0
+					&& calcLineLengthNoComment(token) <= config.wrapping.maxLineLength) {
 					continue;
 				}
 			}
@@ -952,15 +961,47 @@ class MarkWrapping extends MarkWrappingBase {
 			}
 			switch (child.tok) {
 				case Binop(OpBoolAnd), Binop(OpBoolOr):
-					noLineEndBefore(child);
-					var next:Null<TokenInfo> = getNextToken(child);
-					if (next != null) {
-						noLineEndBefore(next.token);
+					// Don't collapse && inside multiline parenthesized expressions
+					// (e.g. ternary with multiline branches)
+					if (!isInsideMultilineParen(child)) {
+						noLineEndBefore(child);
+						var next:Null<TokenInfo> = getNextToken(child);
+						if (next != null) {
+							noLineEndBefore(next.token);
+						}
 					}
 				default:
 			}
 			unwrapBoolOps(child, limit);
 		}
+	}
+
+	/**
+	 * Check if the content of the enclosing POpen→PClose would need wrapping
+	 * (total character count exceeds maxLineLength). This indicates the expression
+	 * will be multiline regardless of the opBool wrapping decision.
+	 */
+	function isInsideMultilineParen(token:TokenTree):Bool {
+		var parent:TokenTree = token.parent;
+		while (parent != null && parent.tok != Root) {
+			switch (parent.tok) {
+				case POpen:
+					var pClose:Null<TokenTree> = getCloseToken(parent);
+					if (pClose == null) return false;
+					// Measure total content length (as if all on one line)
+					var totalLen:Int = 0;
+					var idx:Int = parent.index;
+					while (idx <= pClose.index) {
+						var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+						if (info != null) totalLen += info.token.toString().length + 1; // +1 for space
+						idx++;
+					}
+					return totalLen > config.wrapping.maxLineLength;
+				default:
+			}
+			parent = parent.parent;
+		}
+		return false;
 	}
 
 	function unwrapAddOps(token:TokenTree, limit:TokenTree) {
@@ -1041,6 +1082,9 @@ class MarkWrapping extends MarkWrappingBase {
 			return GoDeeper;
 		});
 		for (chainStart in chainStarts) {
+			// Skip Dots that are direct children of a Block BrOpen with a preceding Sharp —
+			// these are post-#end chain continuations handled by extendChainAcrossSharp.
+			if (isPostSharpChainDot(chainStart)) continue;
 			// look at additional chain starts below
 			markInternalMethodChaining(chainStart);
 			markSingleMethodChain(chainStart);
@@ -1062,20 +1106,7 @@ class MarkWrapping extends MarkWrappingBase {
 		var chainedCalls:Array<TokenTree> = chainStart.filterCallback(function(token:TokenTree, index:Int):FilterResult {
 			switch (token.tok) {
 				case Dot:
-					var prev:TokenInfo = getPreviousToken(token);
-					while (prev != null) {
-						switch (prev.token.tok) {
-							case Comment(_):
-							case CommentLine(_):
-							case PClose:
-								return FoundGoDeeper;
-							case Sharp(MarkLineEnds.SHARP_END):
-							default:
-								break;
-						}
-						prev = getPreviousToken(prev.token);
-					}
-					return GoDeeper;
+					return isDotAfterPClose(token) ? FoundGoDeeper : GoDeeper;
 				case POpen, BrOpen, BkOpen:
 					return SkipSubtree;
 				case Sharp(MarkLineEnds.SHARP_IF):
@@ -1097,8 +1128,17 @@ class MarkWrapping extends MarkWrappingBase {
 			chainStart = firstMethodCall;
 		}
 
+		// Extend chain across #if/#end boundaries: when the chain's subtree ends
+		// and the parent has Sharp(if)/Dot siblings after it, include them.
+		extendChainAcrossSharp(chainStart, chainedCalls);
+
 		var items:Array<WrappableItem> = [];
-		var chainEnd:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(chainStart);
+		// Use last chained call's subtree end if chain was extended across #if/#end
+		var chainEnd:Null<TokenTree> = if (chainedCalls.length > 0) {
+			TokenTreeCheckUtils.getLastToken(chainedCalls[chainedCalls.length - 1]);
+		} else {
+			TokenTreeCheckUtils.getLastToken(chainStart);
+		}
 		var info:TokenInfo = getPreviousToken(chainStart);
 		var chainOpen:Null<TokenTree> = chainStart.parent;
 		if (info != null) {
@@ -1130,6 +1170,140 @@ class MarkWrapping extends MarkWrappingBase {
 			useTrailing: false,
 			overrideAdditionalIndent: null
 		}, "markSingleMethodChain");
+	}
+
+	/** Check if a Dot is preceded by PClose (skipping comments and Sharp(end)). */
+	function isDotAfterPClose(dot:TokenTree):Bool {
+		var prev:TokenInfo = getPreviousToken(dot);
+		while (prev != null) {
+			switch (prev.token.tok) {
+				case Comment(_):
+				case CommentLine(_):
+				case PClose:
+					return true;
+				case Sharp(MarkLineEnds.SHARP_END):
+				default:
+					return false;
+			}
+			prev = getPreviousToken(prev.token);
+		}
+		return false;
+	}
+
+	/** Check if a Dot chain start is a post-#end continuation in a Block. */
+	function isPostSharpChainDot(chainStart:TokenTree):Bool {
+		// Walk up from chainStart to find the Dot that is a direct child of its parent scope
+		var dot:TokenTree = chainStart;
+		while (dot != null) {
+			if (dot.parent != null && dot.parent.tok.match(BrOpen)) {
+				if (TokenTreeCheckUtils.getBrOpenType(dot.parent) == Block) {
+					// Check if there's a Sharp(end) before this dot in the parent's children
+					var prev:Null<TokenInfo> = getPreviousToken(dot);
+					while (prev != null) {
+						switch (prev.token.tok) {
+							case Sharp(MarkLineEnds.SHARP_END):
+								return true;
+							case Sharp(_), Dot, PClose, Const(_), Comment(_), CommentLine(_):
+								prev = getPreviousToken(prev.token);
+								continue;
+							default:
+								return false;
+						}
+					}
+				}
+				return false;
+			}
+			dot = dot.parent;
+		}
+		return false;
+	}
+
+	/**
+	 * When #if/#end splits a method chain, post-#end Dots become siblings at
+	 * the parent level instead of children in the chain subtree. Walk the parent's
+	 * children after the chain end and collect Sharp(if) with Dot children and
+	 * standalone Dots as additional chain elements.
+	 */
+	function extendChainAcrossSharp(chainStart:TokenTree, chainedCalls:Array<TokenTree>) {
+		// Find the chain's last token index to know where to start scanning
+		var lastChainToken:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(chainStart);
+		if (lastChainToken == null) return;
+		var lastIdx:Int = lastChainToken.index;
+
+		// Walk up from chainStart to find the scope that contains Sharp siblings.
+		// The chain subtree may be nested several levels deep (e.g. Return → s → Dot chain).
+		// Sharp(if) and post-#end Dots are children of the enclosing block (BrOpen).
+		var scope:Null<TokenTree> = chainStart.parent;
+		while (scope != null && scope.tok != Root) {
+			if (scope.children == null) {
+				scope = scope.parent;
+				continue;
+			}
+			// Check if the first sibling after our chain is Sharp(if) with a Dot child
+			var hasSharpAfter:Bool = false;
+			for (child in scope.children) {
+				if (child.index <= lastIdx) continue;
+				if (child.tok.match(Sharp(MarkLineEnds.SHARP_IF)) && child.hasChildren()) {
+					for (c in child.children) {
+						if (c.matches(Dot)) {
+							hasSharpAfter = true;
+							break;
+						}
+					}
+				}
+				break; // only check the first sibling after lastIdx
+			}
+			if (hasSharpAfter) break;
+			scope = scope.parent;
+		}
+		if (scope == null || scope.children == null) return;
+
+		// Scan siblings after the chain subtree
+		var foundSharp:Bool = false;
+		for (sibling in scope.children) {
+			if (sibling.index <= lastIdx) continue;
+			switch (sibling.tok) {
+				case Sharp(MarkLineEnds.SHARP_IF):
+					// Check if this Sharp(if) contains a Dot (chain continuation inside #if)
+					if (sibling.hasChildren()) {
+						for (child in sibling.children) {
+							if (child.matches(Dot)) {
+								chainedCalls.push(sibling);
+								sharpChainExtensions.push(sibling);
+								foundSharp = true;
+								// Update lastIdx to continue scanning after #end
+								var sharpLast:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(sibling);
+								if (sharpLast != null) lastIdx = sharpLast.index;
+								break;
+							}
+						}
+					}
+				case Dot:
+					// Dot after #end — continuation of the chain
+					chainedCalls.push(sibling);
+					sharpChainExtensions.push(sibling);
+					// Collect nested Dots within this subtree
+					sibling.filterCallback(function(token:TokenTree, index:Int):FilterResult {
+						switch (token.tok) {
+							case Dot:
+								if (isDotAfterPClose(token)) {
+									chainedCalls.push(token);
+									sharpChainExtensions.push(token);
+								}
+							case POpen, BrOpen, BkOpen:
+								return SkipSubtree;
+							default:
+						}
+						return GoDeeper;
+					});
+					var sibLast:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(sibling);
+					if (sibLast != null) lastIdx = sibLast.index;
+				case Binop(OpAdd), Binop(OpSub), Semicolon:
+					break; // End of statement — stop extending
+				default:
+					if (!foundSharp) break; // Unexpected token before first Sharp — stop
+			}
+		}
 	}
 
 	function markOpBoolChaining() {
@@ -1285,6 +1459,23 @@ class MarkWrapping extends MarkWrappingBase {
 	}
 
 	function markSingleOpAddChain(itemContainer:TokenTree) {
+		// Skip when #if/#end splits statements: OpAdd operators from separate
+		// statements become siblings at Block BrOpen level, or children of
+		// post-#end Dots at that level.
+		switch (itemContainer.tok) {
+			case BrOpen:
+				if (TokenTreeCheckUtils.getBrOpenType(itemContainer) == Block) {
+					return;
+				}
+			case Dot:
+				// Post-#end Dot containing OpAdd — skip, it's part of a method chain
+				if (itemContainer.parent != null && itemContainer.parent.tok.match(BrOpen)) {
+					if (TokenTreeCheckUtils.getBrOpenType(itemContainer.parent) == Block) {
+						return;
+					}
+				}
+			default:
+		}
 		var items:Array<WrappableItem> = [];
 		var prev:Null<TokenInfo> = getPreviousToken(findOpAddItemStart(itemContainer));
 		var chainStart:TokenTree = findOpAddItemStart(itemContainer);
