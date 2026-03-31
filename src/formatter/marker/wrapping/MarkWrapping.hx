@@ -900,6 +900,7 @@ class MarkWrapping extends MarkWrappingBase {
 			lineEndBefore(wrap.dblDot);
 			resolveSoftWraps(wrap.itemStart);
 			unwrapIfFits(wrap.itemStart, wrap.question);
+			wrapBoolOpsIfMultiline(wrap.itemStart, wrap.question);
 			unwrapTernaryBranchCalls(wrap.itemStart);
 			unwrapTernaryBranchCalls(wrap.question);
 			unwrapTernaryBranchCalls(wrap.dblDot);
@@ -909,6 +910,36 @@ class MarkWrapping extends MarkWrappingBase {
 			if (calcLineLength(wrap.itemStart) > config.wrapping.maxLineLength) {
 				lineEndBefore(wrap.question);
 				lineEndBefore(wrap.dblDot);
+			}
+			// Clean up unnecessary comma wrapping inside calls — removes instability
+			// where pass1 wraps a call (fillLine) but pass2 doesn't (shorter line).
+			cleanupCallCommaWrapping(wrap.itemStart);
+			cleanupCallCommaWrapping(wrap.question);
+			cleanupCallCommaWrapping(wrap.dblDot);
+		}
+	}
+
+	/** Remove comma wrapping from calls that fit on one line in their current context. */
+	function cleanupCallCommaWrapping(branchStart:TokenTree) {
+		if (branchStart.children == null) return;
+		for (child in branchStart.children) {
+			switch (child.tok) {
+				case POpen:
+					var pClose:Null<TokenTree> = getCloseToken(child);
+					if (pClose == null) continue;
+					if (isSameLineBetween(child, pClose, false)) continue;
+					// Try removing comma wrapping
+					noWrappingBetween(child, pClose, false);
+					if (calcLineLength(child) <= config.wrapping.maxLineLength) {
+						// Fits — keep unwrapped
+						noLineEndBefore(pClose);
+					} else {
+						// Doesn't fit — re-wrap with fillLine (no leading break)
+						var items:Array<WrappableItem> = makeWrappableItems(child);
+						wrapFillLine2AfterLast(child, pClose, items, config.wrapping.maxLineLength, 0, true);
+					}
+				default:
+					cleanupCallCommaWrapping(child);
 			}
 		}
 	}
@@ -973,6 +1004,20 @@ class MarkWrapping extends MarkWrappingBase {
 				default:
 			}
 			unwrapBoolOps(child, limit);
+		}
+	}
+
+	/** Wrap &&/|| when enclosing POpen→PClose content is multiline. */
+	function wrapBoolOpsIfMultiline(token:TokenTree, limit:TokenTree) {
+		if (token.children == null) return;
+		for (child in token.children) {
+			if (child.index >= limit.index) return;
+			switch (child.tok) {
+				case Binop(OpBoolAnd), Binop(OpBoolOr):
+					if (isInsideMultilineParen(child)) lineEndBefore(child);
+				default:
+			}
+			wrapBoolOpsIfMultiline(child, limit);
 		}
 	}
 
