@@ -1,0 +1,50 @@
+{
+	"wrapping": {
+		"maxLineLength": 160,
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"opBoolChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 3}, {"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "onePerLineAfterFirst",
+					"location": "afterLast"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	private function startMove(event:MouseEvent):Void {
+		if (
+			_allowMove && !_rename && _dragSprite == null && sharedWithMeLevel == 0 && !filePath.startsWith(':') && itemData.type != CLOUD
+		) {
+			doSomething();
+		}
+	}
+}
+
+---
+
+class Main {
+	private function startMove(event:MouseEvent):Void {
+		if (_allowMove && !_rename && _dragSprite == null && sharedWithMeLevel == 0 && !filePath.startsWith(':') && itemData.type != CLOUD) {
+			doSomething();
+		}
+	}
+}
