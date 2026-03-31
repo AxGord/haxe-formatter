@@ -516,6 +516,7 @@ class TokenList {
 					if (!first) {
 						var close:Null<TokenTree> = getCloseToken(info.token);
 						if (close != null) {
+							noNewlineAfterClose(close);
 							index = close.index + 1;
 							continue;
 						}
@@ -524,6 +525,7 @@ class TokenList {
 					if (!first) {
 						var close:Null<TokenTree> = getCloseToken(info.token);
 						if (close != null) {
+							noNewlineAfterClose(close);
 							index = close.index + 1;
 							continue;
 						}
@@ -532,6 +534,7 @@ class TokenList {
 					if (!first) {
 						var close:Null<TokenTree> = getCloseToken(info.token);
 						if (close != null) {
+							noNewlineAfterClose(close);
 							index = close.index + 1;
 							continue;
 						}
@@ -583,6 +586,21 @@ class TokenList {
 			#if debugLog
 			logAction(pos, info.token, '$oldWhitespaceAfter -> ${info.whitespaceAfter}');
 			#end
+		}
+	}
+
+	function noNewlineAfterClose(close:TokenTree) {
+		var closeInfo:Null<TokenInfo> = tokens[close.index];
+		if (closeInfo == null) return;
+		closeInfo.wrapAfter = false;
+		switch (closeInfo.whitespaceAfter) {
+			case Newline:
+				if (closeInfo.spacesAfter <= 0) {
+					closeInfo.whitespaceAfter = None;
+				} else {
+					closeInfo.whitespaceAfter = Space;
+				}
+			default:
 		}
 	}
 

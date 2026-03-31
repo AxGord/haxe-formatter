@@ -165,6 +165,9 @@ class MarkWrappingBase extends MarkerBase {
 			}
 		} else {
 			var lastToken:TokenTree = items[items.length - 1].last;
+			if (close != null && lastToken.index == close.index) {
+				return;
+			}
 			var next:TokenInfo = getNextToken(lastToken);
 			if (next == null) {
 				lineEndAfter(lastToken);
