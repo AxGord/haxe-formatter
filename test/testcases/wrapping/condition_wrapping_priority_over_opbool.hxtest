@@ -1,0 +1,57 @@
+{
+	"wrapping": {
+		"maxLineLength": 140,
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"opBoolChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 3}, {"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "onePerLineAfterFirst",
+					"location": "afterLast"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		for (item in _items) {
+			if (
+				item.folder && !item.filePath.startsWith(':') && item.sharedWithMeLevel == 0 && item.itemData.type != CLOUD && item.getBounds(item.parent).contains(point.x, point.y)
+			) {
+				item.select();
+			}
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		for (item in _items) {
+			if (
+				item.folder && !item.filePath.startsWith(':') && item.sharedWithMeLevel == 0 && item.itemData.type != CLOUD &&
+				item.getBounds(item.parent).contains(point.x, point.y)
+			) {
+				item.select();
+			}
+		}
+	}
+}

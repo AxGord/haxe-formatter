@@ -513,8 +513,12 @@ class MarkWrapping extends MarkWrappingBase {
 		if (pClose == null) {
 			return;
 		}
-		// Skip if line exceeds only due to trailing comment — code itself fits
-		if (calcLineLengthNoComment(token) <= config.wrapping.maxLineLength) {
+		// Measure hypothetical full-line length: prefix + content span.
+		// calcLineLength sees short lines from pre-existing formatting.
+		var prefixLength:Int = calcLineLengthBefore(token);
+		var indent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(token));
+		var contentLength:Int = calcSpanLength(token, pClose);
+		if (indent + prefixLength + contentLength <= config.wrapping.maxLineLength) {
 			return;
 		}
 		var items:Array<WrappableItem> = makeWrappableItems(token);
@@ -718,7 +722,7 @@ class MarkWrapping extends MarkWrappingBase {
 			if (pClose == null) {
 				continue;
 			}
-			if (hasInnerParenWrapping(token, pClose)) {
+			if (hasInnerParenWrapping(token, pClose) && !hasChainBreaks(token, pClose)) {
 				continue;
 			}
 			if (hasInnerArrowBreak(token, pClose) && calcLineLength(token) <= config.wrapping.maxLineLength) {
@@ -766,16 +770,22 @@ class MarkWrapping extends MarkWrappingBase {
 			return;
 		}
 		// No inner breaks — try full collapse (condition wrapping + chain breaks)
-		noLineEndAfter(open);
-		noLineEndBefore(close);
-		for (token in breaksBefore) noLineEndBefore(token);
-		for (token in breaksAfter) noLineEndAfter(token);
-		if (calcLineLength(open) <= config.wrapping.maxLineLength) return;
-		// Doesn't fit — restore condition wrapping
-		lineEndAfter(open);
-		lineEndBefore(close);
-		// Try collapsing just chain breaks
+		// Use calcSpanLength for correct measurement — calcLineLength only sees to the next newline.
+		var indent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(open));
+		var prefix:Int = calcLineLengthBefore(open);
+		var span:Int = calcSpanLength(open, close);
+		if (indent + prefix + span <= config.wrapping.maxLineLength) {
+			// Full collapse: remove condition wrapping + chain breaks
+			noLineEndAfter(open);
+			noLineEndBefore(close);
+			for (token in breaksBefore) noLineEndBefore(token);
+			for (token in breaksAfter) noLineEndAfter(token);
+			return;
+		}
+		// Doesn't fit collapsed — keep condition wrapping, try collapsing chain breaks inside
 		if (breaksBefore.length > 0 || breaksAfter.length > 0) {
+			for (token in breaksBefore) noLineEndBefore(token);
+			for (token in breaksAfter) noLineEndAfter(token);
 			var measureToken:TokenTree = breaksAfter.length > 0 ? breaksAfter[0] : breaksBefore[0];
 			if (calcLineLength(measureToken) <= config.wrapping.maxLineLength) return;
 			for (token in breaksBefore) lineEndBefore(token);
@@ -795,6 +805,21 @@ class MarkWrapping extends MarkWrappingBase {
 					continue;
 				default:
 					return true;
+			}
+		}
+		return false;
+	}
+
+	function hasChainBreaks(open:TokenTree, close:TokenTree):Bool {
+		var idx:Int = open.index;
+		while (idx < close.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			switch (info.token.tok) {
+				case Binop(OpBoolAnd), Binop(OpBoolOr), Binop(OpAdd), Binop(OpSub):
+					if (info.whitespaceAfter == Newline || isNewLineBefore(info.token)) return true;
+				default:
 			}
 		}
 		return false;
