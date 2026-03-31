@@ -16,7 +16,9 @@ class Main {
 
 class Main {
 	function test():Void {
-		final h:Float = Dimensions.HEADER_HEIGHT * scale +
-			Dimensions.CELL_HEIGHT * scale * (rowIdx + 1 - (dayIdx == 0 ? 1 : 0));
+		final h:Float = Dimensions.HEADER_HEIGHT * scale
+			+ Dimensions.CELL_HEIGHT * scale * (rowIdx + 1 - (dayIdx == 0
+				? 1
+				: 0));
 	}
 }

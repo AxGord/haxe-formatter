@@ -30,9 +30,7 @@ class Main {
 		x = indentX
 			+ (item.folder
 				? Dimensions.ITEM_ICON
-				: !fixedSearch
-				? Dimensions.ITEM_ICON
-				: Dimensions.ITEM_ICON_FIXED_FILE_SEARCH);
+				: !fixedSearch ? Dimensions.ITEM_ICON : Dimensions.ITEM_ICON_FIXED_FILE_SEARCH);
 		y = cond ? shortA : shortB;
 	}
 }

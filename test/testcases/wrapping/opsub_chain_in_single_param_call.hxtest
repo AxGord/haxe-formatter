@@ -1,0 +1,42 @@
+{
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function commitData():Void {
+		for (i => item in dataSource) {
+			final listItem:DropDownListItem<T> = createDropDownListItem(_width - 2 * Dimensions.DROP_DOWN_LIST_ITEM_PADDING - Dimensions.SCROLL_BAR_WIDTH);
+			listItem.data = item;
+		}
+	}
+}
+
+---
+
+class Main {
+	function commitData():Void {
+		for (i => item in dataSource) {
+			final listItem:DropDownListItem<T> = createDropDownListItem(
+				_width - 2 * Dimensions.DROP_DOWN_LIST_ITEM_PADDING - Dimensions.SCROLL_BAR_WIDTH
+			);
+			listItem.data = item;
+		}
+	}
+}

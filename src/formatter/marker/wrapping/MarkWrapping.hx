@@ -847,10 +847,12 @@ class MarkWrapping extends MarkWrappingBase {
 		parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
 			switch (token.tok) {
 				case Binop(OpBoolAnd), Binop(OpBoolOr), Binop(OpAdd), Binop(OpSub):
-					tryCollapseBreakBefore(token);
-					var next:Null<TokenInfo> = getNextToken(token);
-					if (next != null) {
-						tryCollapseBreakBefore(next.token);
+					if (isInsideConditionWrap(token)) {
+						tryCollapseBreakBefore(token);
+						var next:Null<TokenInfo> = getNextToken(token);
+						if (next != null) {
+							tryCollapseBreakBefore(next.token);
+						}
 					}
 				default:
 			}

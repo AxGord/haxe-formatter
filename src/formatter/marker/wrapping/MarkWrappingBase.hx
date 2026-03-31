@@ -895,8 +895,35 @@ class MarkWrappingBase extends MarkerBase {
 	}
 
 	public function applyWrappingQueue() {
-		for (place in wrappingQueue) {
+		var applied:Array<Bool> = [for (_ in wrappingQueue) false];
+		for (i in 0...wrappingQueue.length) {
+			if (applied[i]) {
+				continue;
+			}
+			var place:WrappingPlace = wrappingQueue[i];
+			// Before applying opBool chain, apply inner callParameter wrapping that contains
+			// the last opBool item — this callParameter break shortens the effective line length
+			// and may prevent unnecessary opBool wrapping.
+			if (place.origin == OpBoolChainWrapping && place.items != null && place.items.length > 0) {
+				var lastItem:WrappableItem = place.items[place.items.length - 1];
+				var lastItemEnd:Null<TokenTree> = lastItem.last;
+				if (lastItemEnd != null) {
+					for (j in (i + 1)...wrappingQueue.length) {
+						if (applied[j]) {
+							continue;
+						}
+						var inner:WrappingPlace = wrappingQueue[j];
+						if (inner.origin == CallParameterWrapping && inner.start != null) {
+							if (inner.start.index >= lastItem.first.index && inner.start.index <= lastItemEnd.index) {
+								applyWrappingPlace(inner);
+								applied[j] = true;
+							}
+						}
+					}
+				}
+			}
 			applyWrappingPlace(place);
+			applied[i] = true;
 		}
 	}
 

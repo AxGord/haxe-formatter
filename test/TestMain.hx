@@ -41,16 +41,26 @@ class TestMain {
 		var runner:Runner = new Runner();
 
 		var failed = false;
+		var failedTests:Array<String> = [];
 		runner.onProgress.add(r -> {
 			if (!r.result.allOk()) {
 				failed = true;
+				failedTests.push(r.result.cls + "." + r.result.method);
 			}
 		});
 		runner.onComplete.add(_ -> {
+			if (failed) {
+				Sys.println('\n=== FAILED TESTS (${failedTests.length}) ===');
+				for (name in failedTests) {
+					Sys.println('  FAIL: $name');
+				}
+				Sys.stdout().flush();
+			}
 			completionHandler(!failed);
 		});
 
-		new DiagnosticsReport(runner);
+		// DiagnosticsReport calls Sys.exit() before onComplete — don't use it
+		// new DiagnosticsReport(runner);
 		for (test in tests) {
 			runner.addCase(test());
 		}
@@ -65,6 +75,8 @@ class TestMain {
 		if (success) {
 			File.saveContent("test/formatter-result.txt", "\n---\n");
 		}
+		Sys.stdout().flush();
+		Sys.stderr().flush();
 		#if eval
 		if (!success) {
 			Sys.exit(1);
