@@ -1,0 +1,33 @@
+{
+	"indentation": {"tabWidth": 4},
+	"sameLine": {
+		"ifBody": "fitLine"
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		photoGroup.load(() -> if (++loadingProgress == maxLoadingRequests) dispatchEvent(new ProfileFormEvent(ProfileFormEvent.LOADING_FINISHED)));
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		photoGroup.load(() ->
+			if (++loadingProgress == maxLoadingRequests) dispatchEvent(new ProfileFormEvent(ProfileFormEvent.LOADING_FINISHED))
+		);
+	}
+}

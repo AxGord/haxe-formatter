@@ -1,0 +1,34 @@
+{
+	"indentation": {"tabWidth": 4},
+	"wrapping": {
+		"maxLineLength": 140,
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function startMove(event:MouseEvent):Void {
+		if (allowMove && !isRenaming && dragSprite == null && sharedWithMeLevel == 0 && !filePath.startsWith(':') && itemData.type != CLOUD) {
+			mouseDownPoint = new Point(event.stageX, event.stageY);
+		}
+	}
+}
+
+---
+
+class Main {
+	function startMove(event:MouseEvent):Void {
+		if (
+			allowMove && !isRenaming && dragSprite == null && sharedWithMeLevel == 0 && !filePath.startsWith(':') && itemData.type != CLOUD
+		) {
+			mouseDownPoint = new Point(event.stageX, event.stageY);
+		}
+	}
+}

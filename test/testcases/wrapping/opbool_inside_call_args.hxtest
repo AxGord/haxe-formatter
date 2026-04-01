@@ -1,0 +1,40 @@
+{
+	"indentation": {"tabWidth": 4},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"},
+				{"conditions": [{"cond": "itemCount <= n", "value": 1}], "type": "noWrap"}
+			]
+		},
+		"opBoolChain": {
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"},
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}], "type": "fillLine", "location": "afterLast"}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function draw() {
+		if (true)
+			drawRoundRectComplex(posX, posY, width - thickness, height - thickness, top && left ? radius : 0, top && right ? radius : 0, bottom && left ? radius : 0, bottom && right ? radius : 0);
+	}
+}
+
+---
+
+class Main {
+	function draw() {
+		if (true)
+			drawRoundRectComplex(
+				posX, posY, width - thickness, height - thickness, top && left ? radius : 0, top && right ? radius : 0,
+				bottom && left ? radius : 0, bottom && right ? radius : 0
+			);
+	}
+}

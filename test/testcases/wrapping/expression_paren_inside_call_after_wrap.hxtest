@@ -1,0 +1,43 @@
+{
+	"indentation": {"tabWidth": 4},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"},
+				{"conditions": [{"cond": "itemCount <= n", "value": 1}], "type": "noWrap"}
+			]
+		},
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		switch (alignment) {
+			case SPACE_AROUND:
+				final space:Float = Math.max(0, (totalHeight - paddingTop - paddingBottom - contentHeight - spacing * children.length - 1) / 2);
+		}
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		switch (alignment) {
+			case SPACE_AROUND:
+				final space:Float = Math.max(
+					0, (totalHeight - paddingTop - paddingBottom - contentHeight - spacing * children.length - 1) / 2
+				);
+		}
+	}
+}

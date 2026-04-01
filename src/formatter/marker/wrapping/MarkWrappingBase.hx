@@ -649,7 +649,7 @@ class MarkWrappingBase extends MarkerBase {
 					return endToken;
 				}
 				return findItemEnd(next.token);
-			case Binop(_):
+			case Binop(_), Question:
 				return findItemEnd(next.token);
 			case CommentLine(_), Comment(_):
 				return findItemEnd(next.token);
@@ -679,6 +679,7 @@ class MarkWrappingBase extends MarkerBase {
 		var maxItemLength:Int = 0;
 		var totalItemLength:Int = 0;
 		var lineLength:Int = calcLineLength(token);
+		var hasMultiLineItem:Bool = false;
 		var hasMultiLineItem:Bool = false;
 		var hasEqualItemLengths:Bool = true;
 		var itemLength:Int = -1;
