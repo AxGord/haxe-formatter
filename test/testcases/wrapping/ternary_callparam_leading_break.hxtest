@@ -1,0 +1,31 @@
+{
+	"indentation": {"tabWidth": 4},
+	"wrapping": {
+		"maxLineLength": 120,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"},
+				{"conditions": [{"cond": "itemCount <= n", "value": 1}], "type": "noWrap"}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		final result:String = condition ? createItem(alpha, bravo, charlie, delta, echo) : createItem(foxtrot, golf, hotel, india, juliet);
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		final result:String = condition
+			? createItem(alpha, bravo, charlie, delta, echo)
+			: createItem(foxtrot, golf, hotel, india, juliet);
+	}
+}

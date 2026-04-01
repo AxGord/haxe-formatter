@@ -1,0 +1,35 @@
+{
+	"indentation": {"tabWidth": 4},
+	"wrapping": {
+		"maxLineLength": 140,
+		"opBoolChain": {
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"},
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}], "type": "fillLine", "location": "afterLast"}
+			]
+		},
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		final canDo:Bool = viewType == ViewType.LIST || folder == null || (folder != null && data.filePath.startsWith(folder) && data.filePath.length > folder.length);
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		final canDo:Bool = viewType == ViewType.LIST || folder == null ||
+			(folder != null && data.filePath.startsWith(folder) && data.filePath.length > folder.length);
+	}
+}

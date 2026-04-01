@@ -1,0 +1,43 @@
+{
+	"wrapping": {
+		"maxLineLength": 120,
+		"ternaryExpression": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "onePerLineAfterFirst",
+					"location": "beforeLast"
+				}
+			]
+		},
+		"opAddSubChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "beforeLast"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test():Void {
+		obj.x = iconType == MultiShared ? nameField.x - Dimensions.LIST_INDENT_ITEM_NAME + Dimensions.LIST_INDENT_ITEM_ICON : nameField.x + nameField.width - READONLY_SIZE;
+	}
+}
+
+---
+
+class Main {
+	function test():Void {
+		obj.x = iconType == MultiShared
+			? nameField.x - Dimensions.LIST_INDENT_ITEM_NAME + Dimensions.LIST_INDENT_ITEM_ICON
+			: nameField.x + nameField.width - READONLY_SIZE;
+	}
+}

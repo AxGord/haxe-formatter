@@ -76,12 +76,14 @@ class MarkWrapping extends MarkWrappingBase {
 		markCasePatternChaining();
 
 		applyWrappingQueue();
+		reEvaluateOpBoolAfterCallParam();
 		// Fix indent for chain items added by extendChainAcrossSharp:
 		// these tokens are at a shallower tree depth than the chain's original items,
 		// so they need extra indent to align with the chain.
 		for (token in sharpChainExtensions) {
 			additionalIndent(token, 1);
 		}
+		lateDetectTernaries();
 		applyTernaryWrapping();
 		applyArrowWrapping();
 		applyConditionWrapping();
@@ -89,6 +91,87 @@ class MarkWrapping extends MarkWrappingBase {
 		collapseChainWraps();
 		breakLongMethodChains();
 		applyParenIndentWrapping();
+	}
+
+	/** Post-queue: re-evaluate opBoolChain entries that decided NoWrap because
+	 *  inner callParameter was applied first (shortening the line).
+	 *  Strips callParameter breaks, re-applies opBoolChain with true line length. */
+	function reEvaluateOpBoolAfterCallParam() {
+		for (place in wrappingQueue) {
+			if (place.origin != OpBoolChainWrapping) continue;
+			if (place.start == null || place.items == null) continue;
+			var startIdx:Int = getPlaceStartIndex(place);
+			var endIdx:Int = getPlaceEndIndex(place);
+			// Skip if opBoolChain already has breaks (it wrapped successfully)
+			if (hasChainBreaksBetween(startIdx, endIdx)) continue;
+			// Skip if no inner callParameter breaks exist
+			if (!hasSimpleCallParamBreaksBetween(startIdx, endIdx)) continue;
+			// Strip inner breaks, re-apply opBoolChain
+			var idx:Int = startIdx;
+			while (idx <= endIdx) {
+				var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+				idx++;
+				if (info == null) continue;
+				if (isNewLineAfter(info.token)) {
+					noLineEndAfter(info.token);
+				}
+			}
+			applyWrappingPlace(place);
+		}
+	}
+
+	/** Check if there are Newline breaks before &&/|| between start and end indices. */
+	function hasChainBreaksBetween(startIdx:Int, endIdx:Int):Bool {
+		var idx:Int = startIdx;
+		while (idx <= endIdx) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			switch (info.token.tok) {
+				case Binop(OpBoolAnd), Binop(OpBoolOr):
+					if (isNewLineBefore(info.token)) return true;
+					var prev:Null<TokenInfo> = getPreviousToken(info.token);
+					if (prev != null && isNewLineAfter(prev.token)) return true;
+				default:
+			}
+		}
+		return false;
+	}
+
+	/** Check if there are simple callParameter breaks (no arrow/lambda inside). */
+	function hasSimpleCallParamBreaksBetween(startIdx:Int, endIdx:Int):Bool {
+		var idx:Int = startIdx;
+		while (idx <= endIdx) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			if (info.token.tok.match(POpen) && isNewLineAfter(info.token)) {
+				// Skip if call contains arrow function — complex body needs its own wrapping
+				var pClose:Null<TokenTree> = getCloseToken(info.token);
+				if (pClose != null && hasArrowBetween(info.token.index, pClose.index)) continue;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	function hasArrowBetween(startIdx:Int, endIdx:Int):Bool {
+		var idx:Int = startIdx;
+		while (idx <= endIdx) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			switch (info.token.tok) {
+				case Binop(OpArrow), Arrow:
+					return true;
+				default:
+			}
+		}
+		return false;
+	}
+
+	function hasCallParamBreaksBetweenTokens(start:TokenTree, end:TokenTree):Bool {
+		return hasSimpleCallParamBreaksBetween(start.index, end.index);
 	}
 
 	function wrapTypeParameter(token:TokenTree) {
@@ -570,6 +653,16 @@ class MarkWrapping extends MarkWrappingBase {
 		if (token.children[0].tok.match(BrOpen)) {
 			return;
 		}
+		// Skip expression parens that are part of an opBoolChain item (preceded by &&/||).
+		// Let opBoolChain handle line breaking; expression wrapping would add unnecessary indent.
+		var prev:Null<TokenInfo> = getPreviousToken(token);
+		if (prev != null) {
+			switch (prev.token.tok) {
+				case Binop(OpBoolAnd), Binop(OpBoolOr):
+					return;
+				default:
+			}
+		}
 		if (indent + prefixLength + contentLength > config.wrapping.maxLineLength) {
 			expressionWraps.push(token);
 		}
@@ -719,7 +812,16 @@ class MarkWrapping extends MarkWrappingBase {
 				continue;
 			}
 			if (hasInnerParenWrapping(token, pClose) && !hasChainBreaks(token, pClose)) {
-				continue;
+				// Skip if inner paren wrapping handles the line length.
+				// Exception: when opBoolChain is inside and full span exceeds,
+				// condition wrapping is needed so opBoolChain can re-evaluate.
+				if (!hasInnerOpBoolChain(token, pClose)) {
+					continue;
+				}
+				var indent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(token));
+				if (indent + calcSpanLength(token, pClose) <= config.wrapping.maxLineLength) {
+					continue;
+				}
 			}
 			if (hasInnerArrowBreak(token, pClose) && calcLineLength(token) <= config.wrapping.maxLineLength) {
 				continue;
@@ -728,9 +830,70 @@ class MarkWrapping extends MarkWrappingBase {
 			// opBoolChain may have changed spacing, making calcSpanLength give different values.
 			lineEndAfter(token);
 			lineEndBefore(pClose);
+			// Re-evaluate opBoolChain inside BEFORE collapse: the queue applied it before
+			// condition wrapping with callParameter shortening the line, causing NoWrap.
+			// Must run before tryFullCollapseCondition so collapse sees the chain breaks.
+			reApplyInnerOpBoolChain(token, pClose);
 			tryFullCollapseCondition(token, pClose);
 			// Collapse inner callParameter breaks that now fit after condition wrapping
 			collapseInnerCallParamBreaks(token, pClose);
+		}
+	}
+
+	/** Check if there's an opBoolChain at condition depth (not nested inside inner calls). */
+	function hasInnerOpBoolChain(open:TokenTree, close:TokenTree):Bool {
+		for (place in wrappingQueue) {
+			if (place.origin != OpBoolChainWrapping) continue;
+			var startIdx:Int = getPlaceStartIndex(place);
+			var endIdx:Int = getPlaceEndIndex(place);
+			if (startIdx < open.index || endIdx > close.index) continue;
+			// Check that the chain is not nested inside another POpen (call/lambda)
+			if (!isNestedInsideInnerPOpen(place.start, open)) return true;
+		}
+		return false;
+	}
+
+	/** Check if token is inside an inner POpen (between open and some nested POpen/PClose). */
+	function isNestedInsideInnerPOpen(token:TokenTree, condOpen:TokenTree):Bool {
+		var parent:Null<TokenTree> = token.parent;
+		while (parent != null && parent.tok != Root) {
+			if (parent.index == condOpen.index) return false;
+			switch (parent.tok) {
+				case POpen:
+					return true;
+				default:
+			}
+			parent = parent.parent;
+		}
+		return false;
+	}
+
+	/** Re-evaluate opBoolChain wrapping inside a condition that was just wrapped.
+	 *  During queue processing, inner callParameter was applied before opBoolChain,
+	 *  shortening the line and causing NoWrap. After condition wrapping changes the
+	 *  indent level, opBoolChain may need to fire.
+	 *  Strips inner breaks first so calcLineLength sees the true line span. */
+	function reApplyInnerOpBoolChain(open:TokenTree, close:TokenTree) {
+		for (place in wrappingQueue) {
+			if (place.origin != OpBoolChainWrapping) continue;
+			if (place.start == null || place.items == null) continue;
+			var startIdx:Int = getPlaceStartIndex(place);
+			var endIdx:Int = getPlaceEndIndex(place);
+			if (startIdx < open.index || endIdx > close.index) continue;
+			// Only re-apply if opBoolChain decided NoWrap in queue (no chain breaks present).
+			// If it already wrapped, the breaks are correct — no need to re-evaluate.
+			if (hasChainBreaks(open, close)) continue;
+			// Strip inner breaks (e.g. callParameter) so calcLineLength sees true span
+			var idx:Int = open.index + 1;
+			while (idx < close.index) {
+				var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+				idx++;
+				if (info == null) continue;
+				if (isNewLineAfter(info.token)) {
+					noLineEndAfter(info.token);
+				}
+			}
+			applyWrappingPlace(place);
 		}
 	}
 
@@ -949,6 +1112,95 @@ class MarkWrapping extends MarkWrappingBase {
 		}
 	}
 
+	/** Post-queue pass: detect ternaries missed by markSingleTernaryChain because
+	 *  operator breaks (opBool/opAdd) placed by the wrapping queue shortened the line,
+	 *  making determineWrapType2 see a shorter line and skip detection. */
+	function lateDetectTernaries() {
+		var ternaryTokens:Array<TokenTree> = parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
+			switch (token.tok) {
+				case Question:
+					if (token.hasChildren()) {
+						for (child in token.children) {
+							if (child.tok.match(DblDot)) {
+								return FoundGoDeeper;
+							}
+						}
+					}
+				default:
+			}
+			return GoDeeper;
+		});
+		for (question in ternaryTokens) {
+			// Skip if already detected
+			var alreadyDetected:Bool = false;
+			for (wrap in ternaryWraps) {
+				if (wrap.question == question) {
+					alreadyDetected = true;
+					break;
+				}
+			}
+			if (alreadyDetected) continue;
+			// Find dblDot
+			if (question.children == null) continue;
+			var dblDot:Null<TokenTree> = null;
+			for (child in question.children) {
+				if (child.tok.match(DblDot)) {
+					dblDot = child;
+					break;
+				}
+			}
+			if (dblDot == null) continue;
+			var lastToken:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(dblDot);
+			if (lastToken == null) continue;
+			// Walk up to find condToken (same as markSingleTernaryChain)
+			var condToken:TokenTree = question.parent;
+			if (condToken == null) continue;
+			while (condToken.parent != null) {
+				switch (condToken.parent.tok) {
+					case Binop(_), Unop(_), Const(_), Kwd(KwdNull), Kwd(KwdTrue), Kwd(KwdFalse), Dot, QuestionDot:
+						condToken = condToken.parent;
+					default:
+						break;
+				}
+			}
+			// Check: does the full expression (ignoring breaks) exceed maxLineLength?
+			// calcLineLength may be shortened by operator breaks — compare with span.
+			var lineLen:Int = calcLineLength(condToken);
+			var spanWithPrefix:Int = calcLineLengthBefore(condToken) + calcSpanLength(condToken, lastToken)
+				+ indenter.calcAbsoluteIndent(indenter.calcIndent(condToken));
+			if (spanWithPrefix <= config.wrapping.maxLineLength) continue;
+			// Temporarily remove ALL breaks in the ternary to get true line length
+			var saved:Array<{idx:Int, ws:formatter.codedata.WhitespaceAfterType}> = [];
+			// Start from the line beginning (walk back to find tokens before condToken on same line)
+			var startIdx:Int = condToken.index - 1;
+			while (startIdx >= 0) {
+				var info:Null<TokenInfo> = parsedCode.tokenList.tokens[startIdx];
+				if (info != null && info.whitespaceAfter == Newline) break;
+				startIdx--;
+			}
+			startIdx = Std.int(Math.max(0, startIdx + 1));
+			var idx:Int = startIdx;
+			while (idx <= lastToken.index) {
+				var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+				idx++;
+				if (info == null) continue;
+				if (info.whitespaceAfter == Newline) {
+					saved.push({idx: idx - 1, ws: Newline});
+					info.whitespaceAfter = if (info.spacesAfter <= 0) None else Space;
+				}
+			}
+			lineLen = calcLineLength(condToken);
+			// Restore breaks
+			for (s in saved) {
+				var info:Null<TokenInfo> = parsedCode.tokenList.tokens[s.idx];
+				if (info != null) info.whitespaceAfter = s.ws;
+			}
+			if (lineLen > config.wrapping.maxLineLength) {
+				ternaryWraps.push({itemStart: condToken, question: question, dblDot: dblDot});
+			}
+		}
+	}
+
 	function applyExpressionWrapping() {
 		for (token in expressionWraps) {
 			var pClose:Null<TokenTree> = getCloseToken(token);
@@ -989,6 +1241,67 @@ class MarkWrapping extends MarkWrappingBase {
 	}
 
 	/** Remove opAdd/opSub chain breaks between open and close tokens. */
+	/** Check if there are any line breaks before operator tokens (opAdd/opSub/opBool) in the given range. */
+	function hasOperatorBreaks(open:TokenTree, close:TokenTree):Bool {
+		var idx:Int = open.index + 1;
+		while (idx < close.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			switch (info.token.tok) {
+				case Binop(OpAdd), Binop(OpSub), Binop(OpBoolAnd), Binop(OpBoolOr):
+					if (isNewLineBefore(info.token)) return true;
+				default:
+			}
+		}
+		return false;
+	}
+
+	/** Collapse opAdd chain breaks in a ternary branch, then re-evaluate opAddSubChain rules.
+	 *  If the rules still require wrapping, restore the breaks. */
+	function collapseTernaryBranchOpAdd(branchStart:TokenTree, branchEnd:TokenTree) {
+		// Save and remove all opAdd-related breaks
+		var savedBreaks:Array<{idx:Int, ws:formatter.codedata.WhitespaceAfterType}> = [];
+		var opAddTokens:Array<TokenTree> = [];
+		var idx:Int = branchStart.index + 1;
+		while (idx < branchEnd.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			switch (info.token.tok) {
+				case Binop(OpAdd), Binop(OpSub):
+					opAddTokens.push(info.token);
+					var prevInfo:Null<TokenInfo> = getPreviousToken(info.token);
+					if (prevInfo != null && prevInfo.whitespaceAfter == Newline) {
+						savedBreaks.push({idx: prevInfo.token.index, ws: Newline});
+						prevInfo.whitespaceAfter = if (prevInfo.spacesAfter <= 0) None else Space;
+					}
+				default:
+			}
+		}
+		if (savedBreaks.length == 0) return;
+		// Re-evaluate opAddSubChain rules with the branch-level line length
+		if (opAddTokens.length > 0) {
+			// Build items for the opAdd chain in the branch
+			var items:Array<WrappableItem> = [];
+			var itemStart:TokenTree = branchStart;
+			for (opTok in opAddTokens) {
+				items.push(makeWrappableItem(itemStart, opTok));
+				var next:Null<TokenInfo> = getNextToken(opTok);
+				if (next != null) itemStart = next.token;
+			}
+			items.push(makeWrappableItem(itemStart, branchEnd));
+			var rule:WrapRule = determineWrapType2(config.wrapping.opAddSubChain, branchStart, items);
+			if (rule.type != NoWrap && rule.type != Keep) {
+				// Rules still require wrapping — restore breaks
+				for (s in savedBreaks) {
+					var info:Null<TokenInfo> = parsedCode.tokenList.tokens[s.idx];
+					if (info != null) info.whitespaceAfter = s.ws;
+				}
+			}
+		}
+	}
+
 	function collapseInnerChainBreaks(open:TokenTree, close:TokenTree) {
 		var idx:Int = open.index + 1;
 		while (idx < close.index) {
@@ -1000,6 +1313,37 @@ class MarkWrapping extends MarkWrappingBase {
 					if (isNewLineBefore(info.token)) noLineEndBefore(info.token);
 					if (info.whitespaceAfter == Newline) noLineEndAfter(info.token);
 				default:
+			}
+		}
+	}
+
+	/** Collapse all breaks in a ternary branch if the branch fits on one line without them. */
+	function collapseTernaryBranchBreaks(branchStart:TokenTree, branchEnd:TokenTree) {
+		// Save existing breaks for potential restore
+		var savedBreaks:Array<Int> = [];
+		var idx:Int = branchStart.index;
+		while (idx < branchEnd.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			if (info.whitespaceAfter == Newline) {
+				savedBreaks.push(info.token.index);
+				if (info.spacesAfter <= 0) {
+					info.whitespaceAfter = None;
+				} else {
+					info.whitespaceAfter = Space;
+				}
+			}
+			info.wrapAfter = false;
+		}
+		// If branch fits without breaks, done. Otherwise restore.
+		if (calcLineLength(branchStart) <= config.wrapping.maxLineLength) {
+			return;
+		}
+		for (savedIdx in savedBreaks) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[savedIdx];
+			if (info != null) {
+				info.whitespaceAfter = Newline;
 			}
 		}
 	}
@@ -1070,6 +1414,7 @@ class MarkWrapping extends MarkWrappingBase {
 		for (wrap in ternaryWraps) {
 			lineEndBefore(wrap.question);
 			lineEndBefore(wrap.dblDot);
+			var dblDotEnd:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(wrap.dblDot);
 			resolveSoftWraps(wrap.itemStart);
 			unwrapIfFits(wrap.itemStart, wrap.question);
 			wrapBoolOpsIfMultiline(wrap.itemStart, wrap.question);
@@ -1079,9 +1424,57 @@ class MarkWrapping extends MarkWrappingBase {
 			// If entire ternary fits on one line after unwrapping, try collapse
 			noLineEndBefore(wrap.question);
 			noLineEndBefore(wrap.dblDot);
+			var needsWrap:Bool = false;
 			if (calcLineLength(wrap.itemStart) > config.wrapping.maxLineLength) {
+				needsWrap = true;
+			} else if (dblDotEnd != null && hasCallParamBreaksBetweenTokens(wrap.itemStart, dblDotEnd)) {
+				// calcLineLength shortened by callParameter breaks — check full span
+				var indent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(wrap.itemStart));
+				var span:Int = indent + calcLineLengthBefore(wrap.itemStart) + calcSpanLength(wrap.itemStart, dblDotEnd);
+				if (span > config.wrapping.maxLineLength) {
+					needsWrap = true;
+				}
+			}
+			if (!needsWrap && dblDotEnd != null && hasOperatorBreaks(wrap.itemStart, dblDotEnd)) {
+				// calcLineLength was shortened by operator breaks (opAdd/opBool)
+				// within the ternary expression. Temporarily remove them to
+				// get the true single-line length.
+				var savedBreaks:Array<{idx:Int, ws:formatter.codedata.WhitespaceAfterType}> = [];
+				var idx:Int = wrap.itemStart.index;
+				while (idx <= dblDotEnd.index) {
+					var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+					idx++;
+					if (info == null) continue;
+					switch (info.token.tok) {
+						case Binop(OpAdd), Binop(OpSub), Binop(OpBoolAnd), Binop(OpBoolOr):
+							var prevInfo:Null<TokenInfo> = getPreviousToken(info.token);
+							if (prevInfo != null && prevInfo.whitespaceAfter == Newline) {
+								savedBreaks.push({idx: prevInfo.token.index, ws: Newline});
+								prevInfo.whitespaceAfter = if (prevInfo.spacesAfter <= 0) None else Space;
+							}
+						default:
+					}
+				}
+				if (calcLineLength(wrap.itemStart) > config.wrapping.maxLineLength) {
+					needsWrap = true;
+				}
+				// Restore operator breaks — they'll be re-evaluated per branch
+				for (s in savedBreaks) {
+					var info:Null<TokenInfo> = parsedCode.tokenList.tokens[s.idx];
+					if (info != null) info.whitespaceAfter = s.ws;
+				}
+			}
+			if (needsWrap) {
 				lineEndBefore(wrap.question);
 				lineEndBefore(wrap.dblDot);
+				// Re-evaluate opAdd breaks per branch — they may no longer be
+				// needed now that each branch is on its own shorter line.
+				if (dblDotEnd != null) {
+					collapseTernaryBranchOpAdd(wrap.question, wrap.dblDot);
+					lineEndBefore(wrap.question);
+					lineEndBefore(wrap.dblDot);
+					collapseTernaryBranchOpAdd(wrap.dblDot, dblDotEnd);
+				}
 			}
 			// Clean up unnecessary comma wrapping inside calls — removes instability
 			// where pass1 wraps a call (fillLine) but pass2 doesn't (shorter line).
@@ -1106,9 +1499,10 @@ class MarkWrapping extends MarkWrappingBase {
 						// Fits — keep unwrapped
 						noLineEndBefore(pClose);
 					} else {
-						// Doesn't fit — re-wrap with fillLine (no leading break)
+						// Doesn't fit — re-wrap using configured callParameter wrapping style
 						var items:Array<WrappableItem> = makeWrappableItems(child);
-						wrapFillLine2AfterLast(child, pClose, items, config.wrapping.maxLineLength, 0, true);
+						var rule:WrapRule = determineWrapType2(config.wrapping.callParameter, child, items);
+						applyRule(CallParameterWrapping, rule, child, pClose, items, rule.additionalIndent, true);
 					}
 				default:
 					cleanupCallCommaWrapping(child);

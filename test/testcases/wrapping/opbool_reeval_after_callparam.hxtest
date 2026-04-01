@@ -1,0 +1,39 @@
+{
+	"indentation": {"tabWidth": 4},
+	"wrapping": {
+		"maxLineLength": 110,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"},
+				{"conditions": [{"cond": "itemCount <= n", "value": 1}], "type": "noWrap"}
+			]
+		},
+		"opBoolChain": {
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"},
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}], "type": "fillLine", "location": "afterLast"}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		return data.childExists(item ->
+			item.path.length + delta > Limits.maxLength || hasLongChildren(delta, item)
+		);
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		return data.childExists(item ->
+			item.path.length + delta > Limits.maxLength || hasLongChildren(delta, item)
+		);
+	}
+}

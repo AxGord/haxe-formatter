@@ -1,0 +1,42 @@
+{
+	"indentation": {"tabWidth": 4},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"},
+				{"conditions": [{"cond": "itemCount <= n", "value": 1}], "type": "noWrap"}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (data != null) {
+			if (parentNode != null) {
+				final item:SerializableConfig = _sectionDir.lastIndexOf('/') != -1 ? buildNavigationEntry(parentNode.type, parentNode.filePath, '..', parentNode.timestamp, parentNode.date, parentNode.children, parentNode.isNew) : buildNavigationEntry(NavigationEntryVariant.BASIC, '', '..', 0, '1970-01-01', nodeData.children, nodeData.isNew);
+			}
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (data != null) {
+			if (parentNode != null) {
+				final item:SerializableConfig = _sectionDir.lastIndexOf('/') != -1
+					? buildNavigationEntry(
+						parentNode.type, parentNode.filePath, '..', parentNode.timestamp, parentNode.date, parentNode.children,
+						parentNode.isNew
+					)
+					: buildNavigationEntry(NavigationEntryVariant.BASIC, '', '..', 0, '1970-01-01', nodeData.children, nodeData.isNew);
+			}
+		}
+	}
+}

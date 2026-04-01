@@ -1,0 +1,47 @@
+{
+	"indentation": {"tabWidth": 4},
+	"sameLine": {"ifBody": "sameLine"},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"},
+				{"conditions": [{"cond": "itemCount <= n", "value": 1}], "type": "noWrap"}
+			]
+		},
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"}
+			]
+		},
+		"opBoolChain": {
+			"rules": [
+				{"conditions": [{"cond": "itemCount <= n", "value": 3}, {"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"},
+				{"conditions": [{"cond": "totalItemLength <= n", "value": 120}, {"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"},
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}], "type": "onePerLineAfterFirst", "location": "afterLast"}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (searchPattern != null && searchPattern.length > 0 && !listItem.folder && !StringUtils.endsWith(baseName.toLowerCase(), searchPattern))
+			baseName += searchPattern;
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (
+			searchPattern != null && searchPattern.length > 0 && !listItem.folder &&
+			!StringUtils.endsWith(baseName.toLowerCase(), searchPattern)
+		) baseName += searchPattern;
+	}
+}

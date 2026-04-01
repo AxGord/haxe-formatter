@@ -1,0 +1,51 @@
+{
+	"indentation": {"tabWidth": 4},
+	"wrapping": {
+		"maxLineLength": 140,
+		"opBoolChain": {
+			"rules": [
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 3}, {"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "totalItemLength <= n", "value": 120}, {"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "onePerLineAfterFirst",
+					"location": "afterLast"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (true) {
+			if (true) {
+				if (true) {
+					parent != null && parent.nodePath != '' ? '${parent.nodePath}/$nameWithQualification' : nameWithQualification;
+				}
+			}
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (true) {
+			if (true) {
+				if (true) {
+					parent != null && parent.nodePath != '' ? '${parent.nodePath}/$nameWithQualification' : nameWithQualification;
+				}
+			}
+		}
+	}
+}
