@@ -1,0 +1,48 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"},
+				{"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}], "type": "noWrap"}
+			]
+		},
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function create(share:Bool, width:Float, height:Float) {
+		_pathPanel = #if FEATURE_SHARE share ? new popups.fileDialog.share.FileDialogPathPanelWithShare(
+			_dialogViewOptions, _fileList, _fileDialogContentWidth, TOP_PANEL_HEIGHT, _check, additionalShare
+		) : #end
+		new FileDialogPathPanel(_dialogViewOptions, _fileList, _fileDialogContentWidth, TOP_PANEL_HEIGHT);
+	}
+}
+
+---
+
+class Main {
+	function create(share:Bool, width:Float, height:Float) {
+		_pathPanel = #if FEATURE_SHARE share
+			? new popups.fileDialog.share.FileDialogPathPanelWithShare(
+				_dialogViewOptions, _fileList, _fileDialogContentWidth, TOP_PANEL_HEIGHT, _check, additionalShare
+			)
+			: #end
+		new FileDialogPathPanel(_dialogViewOptions, _fileList, _fileDialogContentWidth, TOP_PANEL_HEIGHT);
+	}
+}

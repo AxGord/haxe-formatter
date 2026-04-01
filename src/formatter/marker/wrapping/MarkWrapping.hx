@@ -779,9 +779,23 @@ class MarkWrapping extends MarkWrappingBase {
 				continue;
 			}
 			if (isNewLineAfter(token)) {
+				// Skip lineEndBefore(pClose) when the content ends with a block —
+				// `}))` should stay on one line, not become `}\n))`.
+				if (endsWithBrClose(pClose)) {
+					continue;
+				}
 				lineEndBefore(pClose);
 			}
 		}
+	}
+
+	/** Check if the token before pClose (walking through intermediate PClose) is BrClose. */
+	function endsWithBrClose(pClose:TokenTree):Bool {
+		var prev:Null<TokenInfo> = getPreviousToken(pClose);
+		while (prev != null && prev.token.tok.match(PClose)) {
+			prev = getPreviousToken(prev.token);
+		}
+		return prev != null && prev.token.tok.match(BrClose);
 	}
 
 	function applyArrowWrapping() {
@@ -877,6 +891,11 @@ class MarkWrapping extends MarkWrappingBase {
 				}
 			}
 			if (hasInnerArrowBreak(token, pClose) && calcLineLength(token) <= config.wrapping.maxLineLength) {
+				continue;
+			}
+			// Skip if method chain breaks already handle the line length —
+			// condition wrapping would re-wrap content that's already broken.
+			if (hasMethodChainBreaks(token.index, pClose.index) && calcLineLength(token) <= config.wrapping.maxLineLength) {
 				continue;
 			}
 			// Re-check: if condition is inside a wrapped arrow/call, the line is now shorter.
@@ -1276,7 +1295,11 @@ class MarkWrapping extends MarkWrappingBase {
 				}
 			}
 			lineEndAfter(token);
-			lineEndBefore(pClose);
+			// Skip lineEndBefore(pClose) when the content ends with a block —
+			// `}))` should stay on one line, not become `}\n))`.
+			if (!endsWithBrClose(pClose)) {
+				lineEndBefore(pClose);
+			}
 			// Try to keep the first chunk of content on the POpen line:
 			// `return (mediumBtn.selected` instead of `return (\n\tmediumBtn.selected`.
 			// Only when POpen is NOT preceded by a binary operator — if the expression

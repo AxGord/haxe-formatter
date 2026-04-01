@@ -70,7 +70,7 @@
 class Main {
 	function check(items:Array<Item>, list:Array<Entry>):Result {
 		return list != null ? {
-			groupA: items.groupA.filter(c -> ( switch c.type {
+			groupA: items.groupA.filter(c -> (switch c.type {
 				case READONLY: !list.exists((e:Entry) -> e.id == c.id || e.name == c.name);
 				case FULL: !list.exists((e:Entry) -> e.active && (e.id == c.id || e.name == c.name));
 				case COMPOUND(catA, _, catB):
@@ -82,7 +82,7 @@ class Main {
 							false;
 					}
 			})),
-			groupB: items.groupB.filter(o -> ( switch o.type {
+			groupB: items.groupB.filter(o -> (switch o.type {
 				case READONLY: !list.exists((e:Entry) -> e.name == o.name);
 				case FULL: !list.exists((e:Entry) -> e.active && (e.name == o.name));
 				case null, _: true;
@@ -96,7 +96,7 @@ class Main {
 class Main {
 	function check(items:Array<Item>, list:Array<Entry>):Result {
 		return list != null ? {
-			groupA: items.groupA.filter(c -> ( switch c.type {
+			groupA: items.groupA.filter(c -> (switch c.type {
 				case READONLY: !list.exists((e:Entry) -> e.id == c.id || e.name == c.name);
 				case FULL: !list.exists((e:Entry) -> e.active && (e.id == c.id || e.name == c.name));
 				case COMPOUND(catA, _, catB):
@@ -108,7 +108,7 @@ class Main {
 							false;
 					}
 			})),
-			groupB: items.groupB.filter(o -> ( switch o.type {
+			groupB: items.groupB.filter(o -> (switch o.type {
 				case READONLY: !list.exists((e:Entry) -> e.name == o.name);
 				case FULL: !list.exists((e:Entry) -> e.active && (e.name == o.name));
 				case null, _: true;
