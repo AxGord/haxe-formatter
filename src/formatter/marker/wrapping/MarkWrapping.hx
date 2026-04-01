@@ -89,6 +89,7 @@ class MarkWrapping extends MarkWrappingBase {
 		applyConditionWrapping();
 		applyExpressionWrapping();
 		collapseChainWraps();
+		reEvaluateMethodChainAfterCallParam();
 		breakLongMethodChains();
 		applyParenIndentWrapping();
 	}
@@ -355,7 +356,9 @@ class MarkWrapping extends MarkWrappingBase {
 			case WhileCondition:
 				wrapCondition(token);
 			case IfCondition:
-				wrapCondition(token);
+				if (!isComprehension(token)) {
+					wrapCondition(token);
+				}
 			case ForLoop:
 				if (!isComprehension(token)) {
 					wrapCondition(token);
@@ -1292,6 +1295,67 @@ class MarkWrapping extends MarkWrappingBase {
 	}
 
 	/** Post-queue: break long lines at method chain Dots (Dot preceded by PClose). */
+	/** Post-queue: re-evaluate methodChain entries that wrapped OnePerLine/AfterFirst
+	 *  because callParameter wrapping has since shortened line lengths.
+	 *  Strips method chain breaks, re-applies with current measurements. */
+	function reEvaluateMethodChainAfterCallParam() {
+		for (place in wrappingQueue) {
+			if (place.origin != MethodChainWrapping) continue;
+			if (place.start == null || place.items == null || place.items.length <= 0) continue;
+			var startIdx:Int = getPlaceStartIndex(place);
+			var endIdx:Int = getPlaceEndIndex(place);
+			// Skip if no inner callParameter breaks — nothing changed since evaluation
+			if (!hasCallParamBreaksInChain(startIdx, endIdx)) continue;
+			// Skip if no method chain breaks — chain wasn't wrapped
+			if (!hasMethodChainBreaks(startIdx, endIdx)) continue;
+			// Strip method chain breaks (Dot-after-PClose), keep callParameter breaks
+			stripMethodChainBreaks(startIdx, endIdx);
+			// Re-apply wrapping with current line lengths
+			applyWrappingPlace(place);
+		}
+	}
+
+	/** Check if there are callParameter breaks (newline after POpen) between indices. */
+	function hasCallParamBreaksInChain(startIdx:Int, endIdx:Int):Bool {
+		var idx:Int = startIdx;
+		while (idx <= endIdx) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			if (info.token.tok.match(POpen) && TokenTreeCheckUtils.getPOpenType(info.token) == Call) {
+				if (isNewLineAfter(info.token)) return true;
+			}
+		}
+		return false;
+	}
+
+	/** Check if there are method chain breaks (newline before Dot-after-PClose). */
+	function hasMethodChainBreaks(startIdx:Int, endIdx:Int):Bool {
+		var idx:Int = startIdx;
+		while (idx <= endIdx) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			if (info.token.tok.match(Dot) && isNewLineBefore(info.token) && isDotAfterPClose(info.token)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Remove method chain breaks (before Dot-after-PClose) but keep callParameter breaks. */
+	function stripMethodChainBreaks(startIdx:Int, endIdx:Int) {
+		var idx:Int = startIdx;
+		while (idx <= endIdx) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			if (info.token.tok.match(Dot) && isNewLineBefore(info.token) && isDotAfterPClose(info.token)) {
+				noLineEndBefore(info.token);
+			}
+		}
+	}
+
 	function breakLongMethodChains() {
 		parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
 			switch (token.tok) {
@@ -2339,6 +2403,13 @@ class MarkWrapping extends MarkWrappingBase {
 				case BrOpen:
 					var brClose:Null<TokenTree> = parent.access().firstOf(BrClose).token;
 					if ((brClose == null) || (brClose.index > itemStart.index)) {
+						// Don't use ObjectDecl as chain start — the opAdd chain is
+						// within one field value, not spanning the whole struct.
+						// Returning BrOpen causes wrapFillLine2BeforeLast to call
+						// noLineEndAfter(BrOpen), removing the multiline wrapping.
+						if (TokenTreeCheckUtils.getBrOpenType(parent) == ObjectDecl) {
+							return itemStart;
+						}
 						return parent;
 					}
 				case Binop(OpAssign), Binop(OpAssignOp(_)):

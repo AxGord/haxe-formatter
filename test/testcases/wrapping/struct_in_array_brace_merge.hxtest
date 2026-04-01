@@ -1,0 +1,103 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"opAddSubChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "beforeLast"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		final data = {
+			Groups: [
+				{
+					ID: 'GroupPDF',
+					PartialColors: !_fullColorMode,
+					ImageData: CreatePDF.convertBitmapDataToBase64String(_bitmapData),
+					Title: _scheduleMode ? _schedule.title.text : _event.title.text,
+					ScheduleMode: _scheduleMode, // TODO scheduleNotes.selected,
+					ScheduleDate: _schedule.date, // outputArea.scheduleDate.text,
+					ScheduleTime: TimeInputControl.formatTimeInput(_schedule.hour, _schedule.min), // outputArea.scheduleTime.text,
+					ScheduleDuration: DurationInputControl.getUserFacingValue(_schedule.duration), // outputArea.scheduleDuration.text,
+					ScheduleDescription: _schedule.description.text, // outputArea.scheduleDescription.text,
+					ScheduleObjective: _schedule.objective.text, // outputArea.scheduleObjective.text,
+					ScheduleHighlightNotes: _schedule.highlightNotes.text, // outputArea.scheduleHighlight.text,
+					ScheduleProgression: _schedule.progression.text, // outputArea.scheduleProgression.text,
+					ScheduleMeasurement: FieldSizeInput.getUserFacingArea(_schedule.measurement), // outputArea.scheduleMeasurement.text,
+					ScheduleMembers: NumMembersInputControl.getUserFacingValue(_schedule.membersNo), // outputArea.scheduleMembers.text,
+					ScheduleLevel: AgeGroups.getUserFacingLevel(_schedule.level), // outputArea.scheduleLevel.text,
+					EventDate: _event.date, // outputArea.eventDate.text,
+					EventTime: TimeInputControl.getUserFacingValue(_event.hour) + ' : ' + TimeInputControl.getUserFacingValue(_event.min), // time,
+					EventStructure: EventStructures.getUserFacingStructure(_event.structure), // outputArea.eventStructure.text,
+					EventLayout: buildItemLayout(), // TODO outputArea.memberLayout,
+					EventNotes: _event.notes.text, // outputArea.eventNotes.text,
+					EventOpposition: _event.opposition.text, // outputArea.eventOpposition.text,
+					EventVenue: _event.venue.text, // outputArea.eventVenue.text,
+					EventLeader: _event.ownerName.text, // outputArea.eventLeader.text,
+					EventAlts: _groupData.alts.items.map((subNode) -> subNode.name), // "", // outputArea.altMemberLayout,
+					LanguageCode: constants.Typography.LANG,
+					UserID: id
+				}
+			]
+		};
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		final data = {
+			Groups: [
+				{
+					ID: 'GroupPDF',
+					PartialColors: !_fullColorMode,
+					ImageData: CreatePDF.convertBitmapDataToBase64String(_bitmapData),
+					Title: _scheduleMode ? _schedule.title.text : _event.title.text,
+					ScheduleMode: _scheduleMode, // TODO scheduleNotes.selected,
+					ScheduleDate: _schedule.date, // outputArea.scheduleDate.text,
+					ScheduleTime: TimeInputControl.formatTimeInput(_schedule.hour, _schedule.min), // outputArea.scheduleTime.text,
+					ScheduleDuration: DurationInputControl.getUserFacingValue(_schedule.duration), // outputArea.scheduleDuration.text,
+					ScheduleDescription: _schedule.description.text, // outputArea.scheduleDescription.text,
+					ScheduleObjective: _schedule.objective.text, // outputArea.scheduleObjective.text,
+					ScheduleHighlightNotes: _schedule.highlightNotes.text, // outputArea.scheduleHighlight.text,
+					ScheduleProgression: _schedule.progression.text, // outputArea.scheduleProgression.text,
+					ScheduleMeasurement: FieldSizeInput.getUserFacingArea(_schedule.measurement), // outputArea.scheduleMeasurement.text,
+					ScheduleMembers: NumMembersInputControl.getUserFacingValue(_schedule.membersNo), // outputArea.scheduleMembers.text,
+					ScheduleLevel: AgeGroups.getUserFacingLevel(_schedule.level), // outputArea.scheduleLevel.text,
+					EventDate: _event.date, // outputArea.eventDate.text,
+					EventTime: TimeInputControl.getUserFacingValue(_event.hour) + ' : ' + TimeInputControl.getUserFacingValue(_event.min), // time,
+					EventStructure: EventStructures.getUserFacingStructure(_event.structure), // outputArea.eventStructure.text,
+					EventLayout: buildItemLayout(), // TODO outputArea.memberLayout,
+					EventNotes: _event.notes.text, // outputArea.eventNotes.text,
+					EventOpposition: _event.opposition.text, // outputArea.eventOpposition.text,
+					EventVenue: _event.venue.text, // outputArea.eventVenue.text,
+					EventLeader: _event.ownerName.text, // outputArea.eventLeader.text,
+					EventAlts: _groupData.alts.items.map((subNode) -> subNode.name), // "", // outputArea.altMemberLayout,
+					LanguageCode: constants.Typography.LANG,
+					UserID: id
+				}
+			]
+		};
+	}
+}

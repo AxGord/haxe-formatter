@@ -219,6 +219,12 @@ class MarkSameLine extends MarkerBase {
 						markBodyAfterPOpen(token, resolveFitLine(token, config.sameLine.ifBody), false);
 						return;
 					}
+					// Comprehension filter-if (no else): use ifBody, not expressionIf.
+					// expressionIf: "next" should only apply to value-returning if/else expressions.
+					if (isComprehensionFilterIf(token)) {
+						markBodyAfterPOpen(token, resolveFitLine(token, config.sameLine.ifBody), false);
+						return;
+					}
 					markBodyAfterPOpen(token, Next, config.sameLine.expressionIfWithBlocks);
 					var prev:Null<TokenInfo> = getPreviousToken(token);
 					if ((prev != null) && (prev.token.tok.match(Kwd(KwdElse)))) {
@@ -409,6 +415,29 @@ class MarkSameLine extends MarkerBase {
 		return false;
 	}
 
+	/** Check if token is a comprehension filter-if (inside for, no else). */
+	function isComprehensionFilterIf(token:TokenTree):Bool {
+		if (!token.tok.match(Kwd(KwdIf))) return false;
+		var parent:Null<TokenTree> = token.parent;
+		if (parent == null) return false;
+		// Parent can be KwdFor directly or BrOpen with KwdFor grandparent
+		var isInFor:Bool = switch (parent.tok) {
+			case Kwd(KwdFor):
+				parent.parent != null && parent.parent.tok.match(BkOpen);
+			case BrOpen:
+				parent.parent != null && parent.parent.tok.match(Kwd(KwdFor));
+			case _: false;
+		};
+		if (!isInFor) return false;
+		// Filter-if has no else
+		if (token.children != null) {
+			for (child in token.children) {
+				if (child.tok.match(Kwd(KwdElse))) return false;
+			}
+		}
+		return true;
+	}
+
 	function markFor(token:TokenTree) {
 		if (token == null) {
 			return;
@@ -483,7 +512,11 @@ class MarkSameLine extends MarkerBase {
 						}
 					}
 				} else {
-					markBodyAfterPOpen(token, config.sameLine.forBody, false);
+					var resolved:SameLinePolicy = resolveFitLine(token, config.sameLine.forBody);
+					// In comprehension, for body is an implicit BrOpen(Block).
+					// markBodyAfterPOpen with includeBrOpen=false skips it.
+					// Pass true so markBlockBody can collapse the block onto one line.
+					markBodyAfterPOpen(token, resolved, resolved == Same);
 				}
 			case Next | FitLine:
 				// do nothing

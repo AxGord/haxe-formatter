@@ -1,0 +1,42 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 100,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 60}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		final result = someService.getData(param1, param2, param3, longParameterName).transform(value, otherValue).toString();
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		final result = someService.getData(param1, param2, param3, longParameterName)
+			.transform(value, otherValue)
+			.toString();
+	}
+}

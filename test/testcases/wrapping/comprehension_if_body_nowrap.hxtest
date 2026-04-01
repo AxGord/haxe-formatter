@@ -1,0 +1,40 @@
+{
+	"sameLine": {
+		"ifBody": "fitLine",
+		"forBody": "fitLine"
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		var elementCount = 0;
+		_summaryRow.firstValue = [
+			for (activeElement in dataSource.activeElements.items) if (elementCount++ < ELEMENTS_RENDER_LIMIT) activeElement.name
+		].join('\n');
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		var elementCount = 0;
+		_summaryRow.firstValue = [
+			for (activeElement in dataSource.activeElements.items) if (elementCount++ < ELEMENTS_RENDER_LIMIT) activeElement.name
+		].join('\n');
+	}
+}
