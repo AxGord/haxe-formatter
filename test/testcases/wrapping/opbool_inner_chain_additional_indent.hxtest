@@ -1,0 +1,46 @@
+{
+	"indentation": {"tabWidth": 4},
+	"wrapping": {
+		"maxLineLength": 140,
+		"opBoolChain": {
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "afterLast"
+				}
+			]
+		},
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class ItemListPermissions {
+	function checkItemAccess() {
+		final canModify:Bool = _source.listMode == DisplayModeConst.GRID || baseFolder == null || (baseFolder != null && selectedDataItem.itemPath.beginsWith(baseFolder) && selectedDataItem.itemPath.length > baseFolder.length);
+	}
+}
+
+---
+
+class ItemListPermissions {
+	function checkItemAccess() {
+		final canModify:Bool = _source.listMode == DisplayModeConst.GRID || baseFolder == null || (
+			baseFolder != null && selectedDataItem.itemPath.beginsWith(baseFolder) && selectedDataItem.itemPath.length > baseFolder.length
+		);
+	}
+}

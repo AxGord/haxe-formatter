@@ -138,7 +138,8 @@ class MarkWrapping extends MarkWrappingBase {
 		return false;
 	}
 
-	/** Check if there are simple callParameter breaks (no arrow/lambda inside). */
+	/** Check if there are simple callParameter breaks (no arrow/lambda inside)
+	 *  that are INNER to the opBoolChain (not enclosing it). */
 	function hasSimpleCallParamBreaksBetween(startIdx:Int, endIdx:Int):Bool {
 		var idx:Int = startIdx;
 		while (idx <= endIdx) {
@@ -149,6 +150,9 @@ class MarkWrapping extends MarkWrappingBase {
 				// Skip if call contains arrow function — complex body needs its own wrapping
 				var pClose:Null<TokenTree> = getCloseToken(info.token);
 				if (pClose != null && hasArrowBetween(info.token.index, pClose.index)) continue;
+				// Skip if call ENCLOSES the entire opBoolChain — the call is outer,
+				// opBoolChain is inner. Don't strip outer callParameter breaks.
+				if (pClose != null && info.token.index <= startIdx && pClose.index >= endIdx) continue;
 				return true;
 			}
 		}
@@ -653,13 +657,17 @@ class MarkWrapping extends MarkWrappingBase {
 		if (token.children[0].tok.match(BrOpen)) {
 			return;
 		}
-		// Skip expression parens that are part of an opBoolChain item (preceded by &&/||).
-		// Let opBoolChain handle line breaking; expression wrapping would add unnecessary indent.
+		// Skip expression parens that are part of an opBoolChain item (preceded by &&/||),
+		// UNLESS the paren content + wrapping indent would exceed maxLineLength.
+		// After opBoolChain wrapping, the paren gets at least +1 indent level.
 		var prev:Null<TokenInfo> = getPreviousToken(token);
 		if (prev != null) {
 			switch (prev.token.tok) {
 				case Binop(OpBoolAnd), Binop(OpBoolOr):
-					return;
+					var wrappedIndent:Int = indent + indenter.calcAbsoluteIndent(1);
+					if (wrappedIndent + contentLength < config.wrapping.maxLineLength) {
+						return;
+					}
 				default:
 			}
 		}
@@ -1209,6 +1217,14 @@ class MarkWrapping extends MarkWrappingBase {
 			}
 			lineEndAfter(token);
 			lineEndBefore(pClose);
+			// If POpen was moved to its own line by outer wrapping (e.g. opBoolChain),
+			// try to merge it back to the end of the previous line: `... || (\n` style.
+			if (isNewLineBefore(token)) {
+				noLineEndBefore(token);
+				if (calcLineLength(token) > config.wrapping.maxLineLength) {
+					lineEndBefore(token); // doesn't fit — restore
+				}
+			}
 			// Collapse opAdd/opSub chain breaks inside the wrapped parens — expression wrapping handles the content.
 			collapseInnerChainBreaks(token, pClose);
 			// Try to collapse opAdd/opSub breaks around this expression paren.
