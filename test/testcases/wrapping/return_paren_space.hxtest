@@ -1,0 +1,40 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"whitespace": {
+		"parenConfig": {
+			"expressionParens": {
+				"openingPolicy": "none",
+				"closingPolicy": "none"
+			}
+		}
+	}
+}
+
+---
+
+class Main {
+	function getValue():Float {
+		return (valueA + valueB) / scale;
+	}
+
+	function getTotal():Float {
+		return (base * rate + offset) / (limit - margin);
+	}
+}
+
+---
+
+class Main {
+	function getValue():Float {
+		return (valueA + valueB) / scale;
+	}
+
+	function getTotal():Float {
+		return (base * rate + offset) / (limit - margin);
+	}
+}

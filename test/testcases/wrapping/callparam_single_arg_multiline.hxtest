@@ -1,0 +1,62 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 120,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test1() {
+		if (condition) {
+			_configOperationController.dispatchEvent(new StateUsersChangeEvent(
+				StateUsersChangeEvent.UPDATE, _outputs, StateUtil.createEmptyStateUsers(), users,
+				StateUtil.createEmptyStateUsers()
+			));
+		}
+	}
+
+	function test2() {
+		dispatchEvent(new ApplyBatchAccessEvent(
+			ApplyBatchAccessEvent.APPLY, _batchPath, _groupBlock.addedNodeList, !canMove ? _updateEvent : null
+		));
+	}
+}
+
+---
+
+class Main {
+	function test1() {
+		if (condition) {
+			_configOperationController.dispatchEvent(new StateUsersChangeEvent(
+				StateUsersChangeEvent.UPDATE, _outputs, StateUtil.createEmptyStateUsers(), users,
+				StateUtil.createEmptyStateUsers()
+			));
+		}
+	}
+
+	function test2() {
+		dispatchEvent(new ApplyBatchAccessEvent(
+			ApplyBatchAccessEvent.APPLY, _batchPath, _groupBlock.addedNodeList, !canMove ? _updateEvent : null
+		));
+	}
+}

@@ -446,8 +446,13 @@ class MarkWrappingBase extends MarkerBase {
 			var lengthAfter:Int = calcLineLengthAfter(lastItem.last);
 			var prev:TokenInfo = getPreviousToken(lastItem.first);
 			if ((prev != null) && (lineLength + lengthAfter >= maxLineLength)) {
-				lineEndBefore(prev.token);
-				additionalIndent(prev.token, addIndent);
+				// Only add the trailing break if the original input had a break
+				// before prev.token — don't create new breaks just for trailing comments.
+				var prevPrev:Null<TokenInfo> = getPreviousToken(prev.token);
+				if (prevPrev != null && !parsedCode.isOriginalSameLine(prevPrev.token, prev.token)) {
+					lineEndBefore(prev.token);
+					additionalIndent(prev.token, addIndent + 1);
+				}
 			}
 		}
 		noLineEndAfter(open);

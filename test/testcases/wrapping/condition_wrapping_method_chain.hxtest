@@ -1,0 +1,46 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"sameLine": {
+		"ifBody": "fitLine",
+		"forBody": "fitLine"
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function checkText(text:String):Bool {
+		for (word in text.trim()
+			.toLowerCase()
+			.split(' ')) if (_labelText.indexOf(word) == -1 && _valueText.indexOf(word) == -1) return false;
+		return true;
+	}
+}
+
+---
+
+class Main {
+	function checkText(text:String):Bool {
+		for (word in text.trim()
+			.toLowerCase()
+			.split(' ')) if (_labelText.indexOf(word) == -1 && _valueText.indexOf(word) == -1) return false;
+		return true;
+	}
+}

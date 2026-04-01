@@ -1,0 +1,69 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"opAddSubChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "beforeLast"
+				}
+			]
+		},
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"ternaryExpression": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		final dialog:BatchStopDialog = BatchStopDialog.open(title + (
+			lock
+			? '\n\n<b>' + t('Attention, this is used for project sharing!') + '\n' +
+				t('Stopping sharing will cause access problems for other users.') + '<b/>'
+			: ''
+		));
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		final dialog:BatchStopDialog = BatchStopDialog.open(title + (
+			lock
+			? '\n\n<b>' + t('Attention, this is used for project sharing!') + '\n' +
+				t('Stopping sharing will cause access problems for other users.') + '<b/>'
+			: ''
+		));
+	}
+}

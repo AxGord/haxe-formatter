@@ -1,0 +1,53 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"sameLine": {
+		"forBody": "fitLine"
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		_store.send([
+			for (entry in items) {
+				categoryA: entry.filters.filter(isActive),
+				batchIds: entry.filters.filter(isBatch),
+				segmentIds: entry.filters.filter(isSegment),
+				deleteEntries: entry.items
+			}
+		], _store.clearSync.bind(nodes));
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		_store.send([
+			for (entry in items) {
+				categoryA: entry.filters.filter(isActive),
+				batchIds: entry.filters.filter(isBatch),
+				segmentIds: entry.filters.filter(isSegment),
+				deleteEntries: entry.items
+			}
+		], _store.clearSync.bind(nodes));
+	}
+}

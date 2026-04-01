@@ -1,0 +1,53 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"opAddSubChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "beforeLast"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		if (condition) {
+			final data = {
+				EventTime: TimeInputHandler.getUserOutputValue(_event.hour) + ' : '
+					+ TimeInputHandler.getUserOutputValue(_event.min), // outputArea.eventTime.text,
+				EventLabel: _event.notes.text, // outputArea.eventNotes.text,
+			};
+		}
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		if (condition) {
+			final data = {
+				EventTime: TimeInputHandler.getUserOutputValue(_event.hour) + ' : '
+					+ TimeInputHandler.getUserOutputValue(_event.min), // outputArea.eventTime.text,
+				EventLabel: _event.notes.text, // outputArea.eventNotes.text,
+			};
+		}
+	}
+}

@@ -513,6 +513,15 @@ class MarkSameLine extends MarkerBase {
 					}
 				} else {
 					var resolved:SameLinePolicy = resolveFitLine(token, config.sameLine.forBody);
+					// When forBody is fitLine and the body is an ObjectDecl struct literal,
+					// keep { on the for line even if the full struct doesn't fit —
+					// struct fields wrap naturally inside the braces.
+					if (resolved == Next && config.sameLine.forBody == FitLine) {
+						var body:Null<TokenTree> = getBodyAfterCondition(token);
+						if (body != null && body.tok.match(BrOpen) && TokenTreeCheckUtils.getBrOpenType(body) == ObjectDecl) {
+							resolved = Same;
+						}
+					}
 					// In comprehension, for body is an implicit BrOpen(Block).
 					// markBodyAfterPOpen with includeBrOpen=false skips it.
 					// Pass true so markBlockBody can collapse the block onto one line.

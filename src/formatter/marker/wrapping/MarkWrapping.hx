@@ -76,6 +76,7 @@ class MarkWrapping extends MarkWrappingBase {
 		markCasePatternChaining();
 
 		applyWrappingQueue();
+		reEvaluateSingleArgCallParam();
 		reEvaluateOpBoolAfterCallParam();
 		// Fix indent for chain items added by extendChainAcrossSharp:
 		// these tokens are at a shallower tree depth than the chain's original items,
@@ -92,6 +93,47 @@ class MarkWrapping extends MarkWrappingBase {
 		reEvaluateMethodChainAfterCallParam();
 		breakLongMethodChains();
 		applyParenIndentWrapping();
+	}
+
+	/** Post-queue: for single-arg calls where the arg is multiline (inner call wrapped),
+	 *  remove the outer call's leading break if the opening line fits.
+	 *  e.g. `dispatchEvent(new SomeEvent(\n\t...` should not become `dispatchEvent(\n\tnew SomeEvent(\n\t\t...`. */
+	function reEvaluateSingleArgCallParam() {
+		for (place in wrappingQueue) {
+			if (place.origin != CallParameterWrapping) continue;
+			if (place.items == null || place.items.length != 1) continue;
+			if (place.start == null) continue;
+			// Only act if outer call has a leading break (fillLineWithLeadingBreak was applied)
+			if (!isNewLineAfter(place.start)) continue;
+			// Skip if the wrapping rule is Keep — preserve original formatting
+			var rule:WrapRule = determineWrapType2(place.rules, place.start, place.items);
+			if (rule.type == Keep) continue;
+			var pClose:Null<TokenTree> = place.end;
+			if (pClose == null) pClose = getCloseToken(place.start);
+			if (pClose == null) continue;
+			// Check if inner content is multiline (has breaks inside the single arg)
+			var hasInnerBreak:Bool = false;
+			var idx:Int = place.start.index + 1;
+			while (idx < pClose.index) {
+				var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+				idx++;
+				if (info == null) continue;
+				if (info.whitespaceAfter == Newline) {
+					hasInnerBreak = true;
+					break;
+				}
+			}
+			if (!hasInnerBreak) continue;
+			// Try removing outer leading break — check if opening line fits
+			noLineEndAfter(place.start);
+			noLineEndBefore(pClose);
+			if (calcLineLength(place.start) <= config.wrapping.maxLineLength) {
+				continue; // fits — keep collapsed
+			}
+			// Doesn't fit — restore
+			lineEndAfter(place.start);
+			lineEndBefore(pClose);
+		}
 	}
 
 	/** Post-queue: re-evaluate opBoolChain entries that decided NoWrap because
@@ -1235,6 +1277,19 @@ class MarkWrapping extends MarkWrappingBase {
 			}
 			lineEndAfter(token);
 			lineEndBefore(pClose);
+			// Try to keep the first chunk of content on the POpen line:
+			// `return (mediumBtn.selected` instead of `return (\n\tmediumBtn.selected`.
+			// Only when POpen is NOT preceded by a binary operator — if the expression
+			// paren is an operand in a larger expression (e.g. `title + (\n`), keep the
+			// structural break for readability.
+			var prevToken:Null<TokenInfo> = getPreviousToken(token);
+			var prevIsBinop:Bool = prevToken != null && prevToken.token.tok.match(Binop(_));
+			if (!prevIsBinop) {
+				noLineEndAfter(token);
+				if (calcLineLength(token) > config.wrapping.maxLineLength) {
+					lineEndAfter(token); // doesn't fit — restore leading break
+				}
+			}
 			// If POpen was moved to its own line by outer wrapping (e.g. opBoolChain),
 			// try to merge it back to the end of the previous line: `... || (\n` style.
 			if (isNewLineBefore(token)) {
@@ -1427,7 +1482,49 @@ class MarkWrapping extends MarkWrappingBase {
 					var info:Null<TokenInfo> = parsedCode.tokenList.tokens[s.idx];
 					if (info != null) info.whitespaceAfter = s.ws;
 				}
+				// Set additionalIndent on continuation tokens (after the break) so
+				// they are indented one level deeper than the branch start (? or :).
+				for (opTok in opAddTokens) {
+					var prevInfo:Null<TokenInfo> = getPreviousToken(opTok);
+					if (prevInfo != null && prevInfo.whitespaceAfter == Newline) {
+						additionalIndent(opTok, 1);
+					}
+				}
 			}
+		}
+	}
+
+	/** Re-add opAdd/opSub breaks in a ternary branch if the branch line exceeds maxLineLength.
+	 *  Sets additionalIndent(1) on the operator for proper continuation indent. */
+	function reAddOpAddBreaksInTernaryBranch(branchStart:TokenTree, branchEnd:TokenTree) {
+		// Check if branch line exceeds maxLineLength
+		if (calcLineLength(branchStart) <= config.wrapping.maxLineLength) return;
+		// Check if there are already opAdd breaks — if so, nothing to do
+		if (hasOperatorBreaks(branchStart, branchEnd)) return;
+		// Find opAdd operators and add breaks from last to first
+		var opAddTokens:Array<TokenTree> = [];
+		var idx:Int = branchStart.index + 1;
+		while (idx < branchEnd.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			switch (info.token.tok) {
+				case Binop(OpAdd), Binop(OpSub):
+					opAddTokens.push(info.token);
+				default:
+			}
+		}
+		// Add breaks after operators (from last to first) until the line fits.
+		// The continuation token (after the operator) gets additionalIndent(1).
+		var i:Int = opAddTokens.length - 1;
+		while (i >= 0) {
+			var opTok:TokenTree = opAddTokens[i];
+			i--;
+			var next:Null<TokenInfo> = getNextToken(opTok);
+			if (next == null) continue;
+			lineEndBefore(next.token);
+			additionalIndent(next.token, 1);
+			if (calcLineLength(branchStart) <= config.wrapping.maxLineLength) break;
 		}
 	}
 
@@ -1603,6 +1700,12 @@ class MarkWrapping extends MarkWrappingBase {
 					lineEndBefore(wrap.question);
 					lineEndBefore(wrap.dblDot);
 					collapseTernaryBranchOpAdd(wrap.dblDot, dblDotEnd);
+				}
+				// Re-add opAdd breaks with correct additionalIndent for branches
+				// where unwrapTernaryBranchCalls removed them but the line still exceeds.
+				reAddOpAddBreaksInTernaryBranch(wrap.question, wrap.dblDot);
+				if (dblDotEnd != null) {
+					reAddOpAddBreaksInTernaryBranch(wrap.dblDot, dblDotEnd);
 				}
 			} else if (dblDotEnd != null && !hasLineBreaksBetween(wrap.question.index, dblDotEnd.index - 1)) {
 				// Ternary fits on one line AND branches have no inner breaks —
@@ -2300,7 +2403,7 @@ class MarkWrapping extends MarkWrappingBase {
 			end: null,
 			items: items,
 			rules: config.wrapping.opAddSubChain,
-			useTrailing: false,
+			useTrailing: true,
 			overrideAdditionalIndent: null
 		}, "markSingleOpAddChain");
 

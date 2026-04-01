@@ -637,6 +637,8 @@ class MarkWhitespace extends MarkerBase {
 		var prev:Null<TokenInfo> = getPreviousToken(token);
 		if (prev != null) {
 			switch (prev.token.tok) {
+				case Kwd(KwdReturn), Kwd(KwdThrow):
+					policy = policy.add(Before);
 				case Unop(_):
 					policy = policy.remove(Before);
 				case Binop(_), Comment(_):

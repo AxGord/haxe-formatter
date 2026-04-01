@@ -1,0 +1,51 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"ternaryExpression": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function getResolution():Float {
+		return (mediumBtn.selected
+			? Resolution.IMAGE_WIDTH_MEDIUM
+			: highBtn.selected ? Resolution.IMAGE_WIDTH_HIGH : Resolution.IMAGE_WIDTH_LOW
+		) / 433;
+	}
+}
+
+---
+
+class Main {
+	function getResolution():Float {
+		return (mediumBtn.selected
+			? Resolution.IMAGE_WIDTH_MEDIUM
+			: highBtn.selected ? Resolution.IMAGE_WIDTH_HIGH : Resolution.IMAGE_WIDTH_LOW
+		) / 433;
+	}
+}
