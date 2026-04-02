@@ -584,7 +584,11 @@ class MarkLineEnds extends MarkerBase {
 						if (count == 0) {
 							return true;
 						}
-						if (count > 3) {
+						// Line count > 3 normally means block mode, but wrapping can inflate
+						// the count between passes. If the #if has no branches (#elseif/#else)
+						// and no statements (semicolons), the extra lines are from wrapping —
+						// keep it inline to preserve idempotency.
+						if (count > 3 && !isSimpleSharpBody(token)) {
 							return false;
 						}
 					case Comma | Semicolon:
@@ -633,6 +637,30 @@ class MarkLineEnds extends MarkerBase {
 			default:
 				return false;
 		}
+	}
+
+	/**
+	 * A simple #if body has no branches (#elseif/#else) and no statement-terminating
+	 * semicolons. High line counts in such blocks come from wrapping, not real complexity.
+	 */
+	function isSimpleSharpBody(sharp:TokenTree):Bool {
+		var children:Null<Array<TokenTree>> = sharp.children;
+		if (children == null) {
+			return true;
+		}
+		var skipFirst:Bool = true; // skip condition token
+		for (child in children) {
+			if (skipFirst) {
+				skipFirst = false;
+				continue;
+			}
+			switch (child.tok) {
+				case Semicolon, Sharp(SHARP_ELSE), Sharp(SHARP_ELSE_IF):
+					return false;
+				default:
+			}
+		}
+		return true;
 	}
 
 	function isOnlyWhitespaceBeforeToken(token:TokenTree):Bool {

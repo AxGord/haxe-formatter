@@ -93,11 +93,14 @@ class MarkWrapping extends MarkWrappingBase {
 		reEvaluateMethodChainAfterCallParam();
 		breakLongMethodChains();
 		applyParenIndentWrapping();
+		wrapLongCallParamsInChains();
 	}
 
-	/** Post-queue: for single-arg calls where the arg is multiline (inner call wrapped),
+	/**
+	 * Post-queue: for single-arg calls where the arg is multiline (inner call wrapped),
 	 *  remove the outer call's leading break if the opening line fits.
-	 *  e.g. `dispatchEvent(new SomeEvent(\n\t...` should not become `dispatchEvent(\n\tnew SomeEvent(\n\t\t...`. */
+	 *  e.g. `dispatchEvent(new SomeEvent(\n\t...` should not become `dispatchEvent(\n\tnew SomeEvent(\n\t\t...`.
+	 */
 	function reEvaluateSingleArgCallParam() {
 		for (place in wrappingQueue) {
 			if (place.origin != CallParameterWrapping) continue;
@@ -136,9 +139,11 @@ class MarkWrapping extends MarkWrappingBase {
 		}
 	}
 
-	/** Post-queue: re-evaluate opBoolChain entries that decided NoWrap because
+	/**
+	 * Post-queue: re-evaluate opBoolChain entries that decided NoWrap because
 	 *  inner callParameter was applied first (shortening the line).
-	 *  Strips callParameter breaks, re-applies opBoolChain with true line length. */
+	 *  Strips callParameter breaks, re-applies opBoolChain with true line length.
+	 */
 	function reEvaluateOpBoolAfterCallParam() {
 		for (place in wrappingQueue) {
 			if (place.origin != OpBoolChainWrapping) continue;
@@ -781,7 +786,9 @@ class MarkWrapping extends MarkWrappingBase {
 			if (isNewLineAfter(token)) {
 				// Skip lineEndBefore(pClose) when the content ends with a block —
 				// `}))` should stay on one line, not become `}\n))`.
-				if (endsWithBrClose(pClose)) {
+				// But if the content between POpen and PClose spans multiple lines
+				// (e.g. callParam wrapping inside a method chain), `)` must be on its own line.
+				if (endsWithBrClose(pClose) && !hasLineBreaksBetween(token.index + 1, pClose.index - 1)) {
 					continue;
 				}
 				lineEndBefore(pClose);
@@ -789,10 +796,19 @@ class MarkWrapping extends MarkWrappingBase {
 		}
 	}
 
-	/** Check if the token before pClose (walking through intermediate PClose) is BrClose. */
+	/**
+	 * Check if the token before pClose (walking through intermediate PClose) is BrClose.
+	 *  Returns false if any intermediate PClose has its own callParam wrapping (newline after POpen).
+	 */
 	function endsWithBrClose(pClose:TokenTree):Bool {
 		var prev:Null<TokenInfo> = getPreviousToken(pClose);
 		while (prev != null && prev.token.tok.match(PClose)) {
+			// If this intermediate PClose's matching POpen has callParam wrapping,
+			// stop — this PClose needs its own line break.
+			var matchingPOpen:Null<TokenTree> = prev.token.parent;
+			if (matchingPOpen != null && matchingPOpen.tok.match(POpen) && isNewLineAfter(matchingPOpen)) {
+				return false;
+			}
 			prev = getPreviousToken(prev.token);
 		}
 		return prev != null && prev.token.tok.match(BrClose);
@@ -1431,6 +1447,36 @@ class MarkWrapping extends MarkWrappingBase {
 			if (info.token.tok.match(Dot) && isNewLineBefore(info.token) && isDotAfterPClose(info.token)) {
 				noLineEndBefore(info.token);
 			}
+		}
+	}
+
+	/**
+	 * Post-queue: for callParameter entries inside a method chain whose line
+	 *  exceeds maxLineLength, apply callParameter wrapping. Method chain wrapping
+	 *  runs first and may break `.method(longArg)` via chain Dot, hiding the
+	 *  overflow from callParameter. This produces `.concat(\n\targ\n)` instead
+	 *  of `.concat(arg\n.chainedCall(...))`.
+	 */
+	function wrapLongCallParamsInChains() {
+		for (place in wrappingQueue) {
+			if (place.origin != CallParameterWrapping) continue;
+			if (place.start == null) continue;
+			// Skip if callParameter already has breaks
+			if (isNewLineAfter(place.start)) continue;
+			// Only act on calls in method chains: .methodName( pattern
+			var prev:Null<TokenInfo> = getPreviousToken(place.start);
+			if (prev == null || !prev.token.isCIdent()) continue;
+			var prevPrev:Null<TokenInfo> = getPreviousToken(prev.token);
+			if (prevPrev == null || !prevPrev.token.tok.match(Dot)) continue;
+			// Only when the Dot is after PClose (chained call)
+			if (!isDotAfterPClose(prevPrev.token)) continue;
+			var pClose:Null<TokenTree> = place.end;
+			if (pClose == null) pClose = getCloseToken(place.start);
+			if (pClose == null) continue;
+			if (calcLineLength(place.start) <= config.wrapping.maxLineLength) continue;
+			// Apply callParameter wrapping
+			lineEndAfter(place.start);
+			lineEndBefore(pClose);
 		}
 	}
 

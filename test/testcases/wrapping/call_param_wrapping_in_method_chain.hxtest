@@ -1,0 +1,65 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"},
+				{"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}], "type": "noWrap"}
+			]
+		},
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		if (cond) {
+			for (action in actions) {
+				if (action != null) {
+					final a:Payload = {
+						addActions: action.addActions != null ? action.addActions.coach.filter(ShareUtil.notMixed)
+							.map(u -> {email: u.email, canEdit: u.access == EDIT})
+							.concat(action.addActions.outside.filter(ShareUtil.notMixed).map(u -> {email: u.email, canEdit: u.access == EDIT})) : null,
+						updateActions: null
+					};
+				}
+			}
+		}
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		if (cond) {
+			for (action in actions) {
+				if (action != null) {
+					final a:Payload = {
+						addActions: action.addActions != null ? action.addActions.coach.filter(ShareUtil.notMixed)
+							.map(u -> {email: u.email, canEdit: u.access == EDIT })
+							.concat(
+								action.addActions.outside.filter(ShareUtil.notMixed)
+									.map(u -> {email: u.email, canEdit: u.access == EDIT })
+							) : null,
+						updateActions: null
+					};
+				}
+			}
+		}
+	}
+}
