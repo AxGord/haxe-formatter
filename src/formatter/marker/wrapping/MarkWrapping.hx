@@ -1311,10 +1311,16 @@ class MarkWrapping extends MarkWrappingBase {
 				}
 			}
 			lineEndAfter(token);
-			// Skip lineEndBefore(pClose) when the content ends with a block —
+			// Skip lineEndBefore(pClose) when content ends with a block —
 			// `}))` should stay on one line, not become `}\n))`.
 			if (!endsWithBrClose(pClose)) {
 				lineEndBefore(pClose);
+			}
+			// If PClose is followed by another PClose with its own break
+			// (from callParameter wrapping), merge them — keep `));` together.
+			var nextAfterPClose:Null<TokenInfo> = getNextToken(pClose);
+			if (nextAfterPClose != null && nextAfterPClose.token.tok.match(PClose) && isNewLineBefore(nextAfterPClose.token)) {
+				noLineEndBefore(nextAfterPClose.token);
 			}
 			// Try to keep the first chunk of content on the POpen line:
 			// `return (mediumBtn.selected` instead of `return (\n\tmediumBtn.selected`.
@@ -1327,6 +1333,43 @@ class MarkWrapping extends MarkWrappingBase {
 				noLineEndAfter(token);
 				if (calcLineLength(token) > config.wrapping.maxLineLength) {
 					lineEndAfter(token); // doesn't fit — restore leading break
+				}
+			}
+			// Remove PClose break when it's safe:
+			// 1. Content is single-line — `(short_expr)` should not split `)`.
+			// 2. Content is multiline but PClose is followed by `;` only —
+			//    handles `(multiline_call : Type);` in switch cases.
+			//    Do NOT remove for PClose/operators after `)` — the closing
+			//    paren serves as a visual grouping boundary.
+			if (isNewLineBefore(pClose)) {
+				var canRemove:Bool = false;
+				// Check 1: single-line content
+				if (!isNewLineAfter(token)) {
+					var hasInternalBreaks:Bool = false;
+					var idx:Int = token.index + 1;
+					var endIdx:Int = pClose.index - 1;
+					while (idx < endIdx) {
+						var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+						idx++;
+						if (info != null && info.whitespaceAfter == Newline) {
+							hasInternalBreaks = true;
+							break;
+						}
+					}
+					if (!hasInternalBreaks) canRemove = true;
+				}
+				// Check 2: no leading break, multiline, followed by `;`
+				if (!canRemove && !isNewLineAfter(token)) {
+					var nextAfterClose:Null<TokenInfo> = getNextToken(pClose);
+					if (nextAfterClose != null && nextAfterClose.token.tok.match(Semicolon)) {
+						canRemove = true;
+					}
+				}
+				if (canRemove) {
+					noLineEndBefore(pClose);
+					if (calcLineLength(pClose) > config.wrapping.maxLineLength) {
+						lineEndBefore(pClose); // doesn't fit — restore
+					}
 				}
 			}
 			// If POpen was moved to its own line by outer wrapping (e.g. opBoolChain),
@@ -1787,6 +1830,26 @@ class MarkWrapping extends MarkWrappingBase {
 			cleanupCallCommaWrapping(wrap.itemStart);
 			cleanupCallCommaWrapping(wrap.question);
 			cleanupCallCommaWrapping(wrap.dblDot);
+		}
+		// Second pass: apply additionalIndent for nested ternaries.
+		// A ternary is nested if its ? token falls inside another wrapped ternary's range.
+		for (wrap in ternaryWraps) {
+			if (!isNewLineBefore(wrap.question)) continue; // not wrapped
+			var depth:Int = 0;
+			for (outer in ternaryWraps) {
+				if (outer == wrap) continue;
+				if (!isNewLineBefore(outer.question)) continue; // outer not wrapped
+				if (wrap.question.index > outer.question.index) {
+					var outerEnd:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(outer.dblDot);
+					if (outerEnd != null && wrap.question.index < outerEnd.index) {
+						depth++;
+					}
+				}
+			}
+			if (depth > 0) {
+				additionalIndent(wrap.question, depth);
+				additionalIndent(wrap.dblDot, depth);
+			}
 		}
 	}
 

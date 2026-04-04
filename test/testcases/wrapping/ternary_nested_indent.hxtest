@@ -1,0 +1,44 @@
+{
+	"indentation": {
+		"tabWidth": 4
+	},
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 120,
+		"ternaryExpression": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "onePerLineAfterFirst",
+					"location": "beforeLast"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test():Void {
+		final padding:Float = isOuter ? isInner ? Constants.VERY_LONG_INNER_TRUE_RESULT_PADDING_VALUE : Constants.VERY_LONG_INNER_FALSE_RESULT_PADDING_VALUE : Constants.VERY_LONG_OUTER_FALSE_PADDING_VALUE;
+	}
+}
+
+---
+
+class Main {
+	function test():Void {
+		final padding:Float = isOuter
+			? isInner
+				? Constants.VERY_LONG_INNER_TRUE_RESULT_PADDING_VALUE
+				: Constants.VERY_LONG_INNER_FALSE_RESULT_PADDING_VALUE
+			: Constants.VERY_LONG_OUTER_FALSE_PADDING_VALUE;
+	}
+}

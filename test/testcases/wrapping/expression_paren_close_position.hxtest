@@ -1,0 +1,48 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 120,
+		"ternaryExpression": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "onePerLineAfterFirst",
+					"location": "beforeLast"
+				}
+			]
+		},
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test():Void {
+		result.text = config.mode == EXTENDED ? (config.format == ALPHA ? Utils.convertToAlpha(65 - 1 + config.index) : Std.string(config.index)) + "." : "-";
+	}
+}
+
+---
+
+class Main {
+	function test():Void {
+		result.text = config.mode == EXTENDED
+			? (config.format == ALPHA ? Utils.convertToAlpha(65 - 1 + config.index) : Std.string(config.index)) + "."
+			: "-";
+	}
+}

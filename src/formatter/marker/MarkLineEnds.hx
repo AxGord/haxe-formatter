@@ -255,7 +255,7 @@ class MarkLineEnds extends MarkerBase {
 					return false;
 				case PClose | BkClose:
 					continue;
-				case Binop(_):
+				case Binop(_), Unop(_):
 					return false;
 				default:
 					return true;

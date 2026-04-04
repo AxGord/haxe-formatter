@@ -1,0 +1,50 @@
+{
+	"indentation": {
+		"tabWidth": 4
+	},
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"opAddSubChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "beforeLast"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test():String {
+		return '${SECTION_DELIMITER}ctrl1:${topRightPointX - 7.5},$topRightPointY'
+			+ '${SECTION_DELIMITER}ctrl2:${bottomLeftPointX + xMul * bottomGrayPointOffsetX},${bottomLeftPointY + yMul * bottomGrayPointOffsetY + 7.5}'
+			+ '${SECTION_DELIMITER}ctrl3:${bottomLeftPointX + xMul * bottomRedPointOffsetX},${bottomLeftPointY + bottomRedPointOffsetY}'
+			+ '${SECTION_DELIMITER}ctrl4:${bottomLeftPointX + xMul * bottomGreenPointOffsetX},${bottomLeftPointY + bottomGreenPointOffsetY}';
+	}
+}
+
+---
+
+class Main {
+	function test():String {
+		return '${SECTION_DELIMITER}ctrl1:${topRightPointX - 7.5},$topRightPointY'
+			+ '${SECTION_DELIMITER}ctrl2:${bottomLeftPointX + xMul * bottomGrayPointOffsetX},${bottomLeftPointY + yMul * bottomGrayPointOffsetY + 7.5}'
+			+ '${SECTION_DELIMITER}ctrl3:${bottomLeftPointX + xMul * bottomRedPointOffsetX},${bottomLeftPointY + bottomRedPointOffsetY}'
+			+ '${SECTION_DELIMITER}ctrl4:${bottomLeftPointX + xMul * bottomGreenPointOffsetX},${bottomLeftPointY + bottomGreenPointOffsetY}';
+	}
+}

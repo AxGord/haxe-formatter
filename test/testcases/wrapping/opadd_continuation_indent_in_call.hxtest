@@ -1,0 +1,53 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 100,
+		"opAddSubChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "beforeLast"
+				}
+			]
+		},
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test():Void {
+		db.execute('SELECT id, name, status FROM items ' + 'WHERE category = "active" AND priority > 0 ' + 'ORDER BY created_at DESC ' + 'LIMIT 100 OFFSET 0' + ';');
+	}
+}
+
+---
+
+class Main {
+	function test():Void {
+		db.execute('SELECT id, name, status FROM items '
+			+ 'WHERE category = "active" AND priority > 0 ' + 'ORDER BY created_at DESC '
+			+ 'LIMIT 100 OFFSET 0' + ';'
+		);
+	}
+}

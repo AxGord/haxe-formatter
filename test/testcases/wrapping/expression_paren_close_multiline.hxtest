@@ -1,0 +1,60 @@
+{
+	"indentation": {
+		"tabWidth": 4
+	},
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 120,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test():Void {
+		final content:IContent = switch mode {
+			case GRID: (new GridView(folderPath, getItemData(), items, scrollContainer, assets, fileSystem, boxWidth ?? 0., search, groupByOwner, source.getThumbnail) : IContent);
+			case LIST: (new ListView(listType, source.rootItemData, items, scrollContainer, assets, fileSystem, boxWidth ?? 0., search, groupByOwner) : IContent);
+		};
+	}
+}
+
+---
+
+class Main {
+	function test():Void {
+		final content:IContent = switch mode {
+			case GRID: (new GridView(
+					folderPath, getItemData(), items, scrollContainer, assets, fileSystem, boxWidth ?? 0., search,
+					groupByOwner, source.getThumbnail
+				) : IContent);
+			case LIST: (new ListView(
+					listType, source.rootItemData, items, scrollContainer, assets, fileSystem, boxWidth ?? 0., search,
+					groupByOwner
+				) : IContent);
+		};
+	}
+}

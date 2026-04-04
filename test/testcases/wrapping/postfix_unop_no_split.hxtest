@@ -1,0 +1,34 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0,
+			"betweenFunctions": 0
+		}
+	},
+	"sameLine": {
+		"functionBody": "next"
+	},
+	"wrapping": {
+		"maxLineLength": 80
+	}
+}
+
+---
+
+class Main {
+	public inline function next():Void this++;
+	public inline function prev():Void this--;
+	public inline function reset():Void this = cast 0;
+}
+
+---
+
+class Main {
+	public inline function next():Void
+		this++;
+	public inline function prev():Void
+		this--;
+	public inline function reset():Void
+		this = cast 0;
+}

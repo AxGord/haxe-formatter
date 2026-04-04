@@ -445,7 +445,7 @@ class MarkWrappingBase extends MarkerBase {
 			var lastItem:WrappableItem = items[items.length - 1];
 			var lengthAfter:Int = calcLineLengthAfter(lastItem.last);
 			var prev:TokenInfo = getPreviousToken(lastItem.first);
-			if ((prev != null) && (lineLength + lengthAfter >= maxLineLength)) {
+			if ((prev != null) && (lineLength + lengthAfter > maxLineLength)) {
 				// Only add the trailing break if the original input had a break
 				// before prev.token — don't create new breaks just for trailing comments.
 				var prevPrev:Null<TokenInfo> = getPreviousToken(prev.token);
@@ -654,7 +654,7 @@ class MarkWrappingBase extends MarkerBase {
 					return endToken;
 				}
 				return findItemEnd(next.token);
-			case Binop(_), Question:
+			case Binop(_), Question, Unop(_):
 				return findItemEnd(next.token);
 			case CommentLine(_), Comment(_):
 				return findItemEnd(next.token);
