@@ -1,0 +1,25 @@
+{
+	"wrapping": {
+		"maxLineLength": 160
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (hasInnerArrowBreakMethod(token, pClose) && calcLineLengthMethod(token) <= config.wrapping.maxLineLength && !hasChainBreaksMethod(token, pClose)) {
+			continue;
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (hasInnerArrowBreakMethod(token, pClose) && calcLineLengthMethod(token) <= config.wrapping.maxLineLength && !hasChainBreaksMethod(token, pClose)) {
+			continue;
+		}
+	}
+}

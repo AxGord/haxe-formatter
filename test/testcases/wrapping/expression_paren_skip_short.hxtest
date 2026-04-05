@@ -17,7 +17,7 @@
 
 class Main {
 	static function main() {
-		if (checkSessionUsersForStopSharing(sessionUser, lostShare) && !result.exists((u:FileSystemItemShareUser) -> (u.id != 0 && u.id == sessionUser.id) || u.email == sessionUser.email)) {
+		if (checkDetailEntriesForProcessing(detailEntry, lostEntry) && !result.exists((u:DataModelDetailItemUser) -> (u.id != 0 && u.id == detailEntry.id) || u.email == detailEntry.email)) {
 			doSomething();
 		}
 	}
@@ -27,11 +27,11 @@ class Main {
 
 class Main {
 	static function main() {
-		if (checkSessionUsersForStopSharing(sessionUser, lostShare)
-			&& !result.exists((u:FileSystemItemShareUser) ->
-				(u.id != 0 && u.id == sessionUser.id) || u.email == sessionUser.email
+		if (checkDetailEntriesForProcessing(detailEntry, lostEntry)
+			&& !result.exists((u:DataModelDetailItemUser) ->
+				(u.id != 0 && u.id == detailEntry.id) || u.email == detailEntry.email
 			)) {
-				doSomething();
+			doSomething();
 		}
 	}
 }

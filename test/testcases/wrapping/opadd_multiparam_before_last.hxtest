@@ -1,0 +1,48 @@
+{
+	"wrapping": {
+		"maxLineLength": 100,
+		"opAddSubChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "beforeLast"
+				}
+			]
+		},
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test():Void {
+		localize("Press the button to start migration " + "and transfer your data to the new version " + "of the application.", 10212);
+	}
+}
+
+---
+
+class Main {
+	function test():Void {
+		localize(
+			"Press the button to start migration " + "and transfer your data to the new version "
+				+ "of the application.",
+			10212
+		);
+	}
+}

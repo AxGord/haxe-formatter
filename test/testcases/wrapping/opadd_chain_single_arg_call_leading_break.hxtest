@@ -1,0 +1,52 @@
+{
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"opAddSubChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "beforeLast"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test():Void {
+		builder.build('aaaa bbbbb (' + 'cccccccc ddddddddd eee ffff ggggggg hhhh, ' + 'iiiiii jjjjjjj kkk llll, ' + 'mmmmmm nnnnnnn, ' + 'oooooo ppppppppp nnnnnnn, ' + 'qqqqqq rrrr sss tttt, ' + 'uuuuuuuuuuuuuuu vvvv, ' + 'wwwwwwwwwwwwwwwwwwwwwww xxxxxx, ' + 'yyyyyyyy zzzzzzzz kkk llll' + ');');
+	}
+}
+
+---
+
+class Main {
+	function test():Void {
+		builder.build(
+			'aaaa bbbbb (' + 'cccccccc ddddddddd eee ffff ggggggg hhhh, ' + 'iiiiii jjjjjjj kkk llll, '
+				+ 'mmmmmm nnnnnnn, ' + 'oooooo ppppppppp nnnnnnn, ' + 'qqqqqq rrrr sss tttt, ' + 'uuuuuuuuuuuuuuu vvvv, '
+				+ 'wwwwwwwwwwwwwwwwwwwwwww xxxxxx, ' + 'yyyyyyyy zzzzzzzz kkk llll' + ');'
+		);
+	}
+}

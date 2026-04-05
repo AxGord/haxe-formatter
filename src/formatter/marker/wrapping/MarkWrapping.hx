@@ -1061,7 +1061,9 @@ class MarkWrapping extends MarkWrappingBase {
 					continue;
 				}
 			}
-			if (hasInnerArrowBreak(token, pClose) && calcLineLength(token) <= config.wrapping.maxLineLength) {
+			if (hasInnerArrowBreak(token, pClose)
+				&& calcLineLength(token) <= config.wrapping.maxLineLength
+				&& !hasChainBreaks(token, pClose)) {
 				continue;
 			}
 			// Skip if method chain breaks already handle the line length —
@@ -1182,14 +1184,14 @@ class MarkWrapping extends MarkWrappingBase {
 		collectChainBreaks(open, close, breaksBefore, breaksAfter);
 		// Only attempt full collapse if there are no other (non-chain) breaks inside
 		if (hasNonChainBreaks(open, close)) {
-			// Inner wrapping (callParameter, arrow, etc.) — just try collapsing chain breaks
+			// Inner wrapping (callParameter, arrow, etc.) — try collapsing chain breaks.
+			// Use span check: calcLineLength only sees first line (up to arrow/call break),
+			// but full condition span may exceed and need the chain break.
 			if (breaksBefore.length > 0 || breaksAfter.length > 0) {
+				var condIndent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(open) + 1);
+				if (condIndent + calcSpanLength(open, close) > config.wrapping.maxLineLength) return;
 				for (token in breaksBefore) noLineEndBefore(token);
 				for (token in breaksAfter) noLineEndAfter(token);
-				var measureToken:TokenTree = breaksAfter.length > 0 ? breaksAfter[0] : breaksBefore[0];
-				if (calcLineLength(measureToken) <= config.wrapping.maxLineLength) return;
-				for (token in breaksBefore) lineEndBefore(token);
-				for (token in breaksAfter) lineEndAfter(token);
 			}
 			return;
 		}
@@ -1866,6 +1868,9 @@ class MarkWrapping extends MarkWrappingBase {
 			switch (token.tok) {
 				case Binop(OpBoolAnd), Binop(OpBoolOr), Binop(OpAdd), Binop(OpSub):
 					if (isInsideConditionWrap(token)) {
+						if (shouldPreserveChainBreak(token)) {
+							return GoDeeper;
+						}
 						tryCollapseBreakBefore(token);
 						var next:Null<TokenInfo> = getNextToken(token);
 						if (next != null) {
@@ -1876,6 +1881,21 @@ class MarkWrapping extends MarkWrappingBase {
 			}
 			return GoDeeper;
 		});
+	}
+
+	/** Condition has arrow breaks AND full span exceeds maxLineLength. */
+	function shouldPreserveChainBreak(token:TokenTree):Bool {
+		for (open in conditionWraps) {
+			var close:Null<TokenTree> = getCloseToken(open);
+			if (close == null) continue;
+			if (token.index <= open.index || token.index >= close.index) continue;
+			if (!hasInnerArrowBreak(open, close)) continue;
+			var condIndent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(open) + 1);
+			if (condIndent + calcSpanLength(open, close) > config.wrapping.maxLineLength) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** Remove line break before token only if the combined line would still fit. */

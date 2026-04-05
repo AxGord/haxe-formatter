@@ -563,6 +563,15 @@ class Indenter {
 		var skipToToken:Null<TokenTree> = null;
 		switch (firstToken.tok) {
 			case BkClose | BrClose | PClose:
+				// BrOpen(Block) on a line starting with PClose (e.g. `)) {`):
+				// indent context comes from keyword parent (if/for/while),
+				// not from the condition's closing parens.
+				if (firstToken.tok.match(PClose) && token.tok.match(BrOpen)) {
+					var type:BrOpenType = TokenTreeCheckUtils.getBrOpenType(token);
+					if (type == Block) {
+						return null;
+					}
+				}
 				skipToToken = findSkippingToken(firstToken.parent);
 				if (skipToToken == null) {
 					skipToToken = firstToken.parent;
