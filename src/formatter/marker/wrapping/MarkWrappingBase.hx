@@ -888,36 +888,7 @@ class MarkWrappingBase extends MarkerBase {
 						// Chain NoWrap: don't touch anything — other wrappings (callParameter)
 						// may have set soft wraps that need to be preserved.
 					case CallParameterWrapping:
-						// Don't unwrap if resulting line would exceed maxLineLength —
-						// preserve existing breaks from the original source.
-						var canUnwrap:Bool = true;
-						if (close != null) {
-							var lineStart:Null<TokenTree> = findLineStartToken(open);
-							if (lineStart != null) {
-								var spanLen:Int = 0;
-								var si:Int = open.index + 1;
-								while (si <= close.index) {
-									var sInfo:Null<TokenInfo> = parsedCode.tokenList.tokens[si];
-									si++;
-									if (sInfo == null) continue;
-									spanLen += sInfo.text.length;
-									switch sInfo.whitespaceAfter {
-										case None:
-										case Space: spanLen += Math.floor(Math.max(1, sInfo.spacesAfter));
-										case Newline: spanLen += 1; // newline → space when unwrapped
-									}
-								}
-								var lineLen:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(lineStart))
-									+ calcLineLengthBefore(open)
-									+ calcTokenLength(open)
-									+ spanLen;
-								if (lineLen > config.wrapping.maxLineLength) {
-									canUnwrap = false;
-									trace('DBG NoWrap BLOCKED: lineLen=$lineLen open=$open');
-								}
-							}
-						}
-						if (canUnwrap) noWrappingBetween(open, close, false);
+						noWrappingBetween(open, close, false);
 					case _:
 						noWrappingBetween(open, close, false);
 				}
@@ -1058,7 +1029,6 @@ class MarkWrappingBase extends MarkerBase {
 		if (savedPOpen != null) {
 			if (!isNewLineAfter(savedPOpen)) {
 				lineEndAfter(savedPOpen);
-				trace('DBG restore: origin=${place.origin} savedPOpen=$savedPOpen');
 			}
 		}
 		// After fillLineWithLeadingBreak, immediately move PClose to its own line

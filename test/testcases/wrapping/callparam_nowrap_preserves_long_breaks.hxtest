@@ -1,0 +1,66 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"opBoolChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 3}, {"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "totalItemLength <= n", "value": 120}, {"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "afterLast"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		return assert(
+			mockFs.setTextWithoutChangeTimeCalls.length == 1 // replaced local with server (can't write to server)
+				&& mockFs.setTextWithoutChangeTimeCalls[0].text == "<drill>server</drill>" && rfs.uploadFileBlockedCalls.length == 1 &&
+				rfs.renameLocalAndUploadCalls.length == 0 // shared: no -local rename
+		);
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		return assert(
+			mockFs.setTextWithoutChangeTimeCalls.length == 1 // replaced local with server (can't write to server)
+			&& mockFs.setTextWithoutChangeTimeCalls[0].text == "<drill>server</drill>" && rfs.uploadFileBlockedCalls.length == 1 &&
+			rfs.renameLocalAndUploadCalls.length == 0 // shared: no -local rename
+		);
+	}
+}

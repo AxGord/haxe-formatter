@@ -120,14 +120,42 @@ class MarkWrapping extends MarkWrappingBase {
 			if (place.origin != CallParameterWrapping) continue;
 			if (place.items == null || place.items.length != 1) continue;
 			if (place.start == null) continue;
-			// Only act if outer call has a leading break (fillLineWithLeadingBreak was applied)
-			if (!isNewLineAfter(place.start)) continue;
-			// Skip if the wrapping rule is Keep — preserve original formatting
-			var rule:WrapRule = determineWrapType2(place.rules, place.start, place.items);
-			if (rule.type == Keep) continue;
 			var pClose:Null<TokenTree> = place.end;
 			if (pClose == null) pClose = getCloseToken(place.start);
 			if (pClose == null) continue;
+			if (!isNewLineAfter(place.start)) {
+				// No leading break — NoWrap collapsed this call.
+				// If the content has top-level comment-forced breaks (CommentLine between
+				// POpen and PClose outside nested blocks), add the leading break.
+				// Comments force line breaks that noWrappingBetween preserves, creating a
+				// multi-line expression that needs the POpen break for consistency.
+				var hasTopLevelComment:Bool = false;
+				var bi:Int = place.start.index + 1;
+				while (bi < pClose.index) {
+					final bInfo:Null<TokenInfo> = parsedCode.tokenList.tokens[bi];
+					bi++;
+					if (bInfo == null) continue;
+					switch bInfo.token.tok {
+						case POpen, BrOpen, BkOpen:
+							// Skip nested blocks
+							final close:Null<TokenTree> = getCloseToken(bInfo.token);
+							if (close != null) bi = close.index + 1;
+						case CommentLine(_):
+							hasTopLevelComment = true;
+							break;
+						case _:
+					}
+				}
+				if (hasTopLevelComment) {
+					lineEndAfter(place.start);
+					lineEndBefore(pClose);
+				}
+				continue;
+			}
+			// Has a leading break (fillLineWithLeadingBreak was applied) — try to collapse it
+			// Skip if the wrapping rule is Keep — preserve original formatting
+			var rule:WrapRule = determineWrapType2(place.rules, place.start, place.items);
+			if (rule.type == Keep) continue;
 			// Check if inner content is multiline (has breaks inside the single arg)
 			var hasInnerBreak:Bool = false;
 			var idx:Int = place.start.index + 1;
