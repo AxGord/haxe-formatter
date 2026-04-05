@@ -335,6 +335,7 @@ class MarkWrappingBase extends MarkerBase {
 				additionalIndent(lastItem.first, addIndent);
 			}
 		}
+		// Don't remove leading break on Call POpen — callParameter wrapping placed it intentionally
 		noLineEndAfter(open);
 		wrapAfter(open, false);
 	}
@@ -887,7 +888,36 @@ class MarkWrappingBase extends MarkerBase {
 						// Chain NoWrap: don't touch anything — other wrappings (callParameter)
 						// may have set soft wraps that need to be preserved.
 					case CallParameterWrapping:
-						noWrappingBetween(open, close, false);
+						// Don't unwrap if resulting line would exceed maxLineLength —
+						// preserve existing breaks from the original source.
+						var canUnwrap:Bool = true;
+						if (close != null) {
+							var lineStart:Null<TokenTree> = findLineStartToken(open);
+							if (lineStart != null) {
+								var spanLen:Int = 0;
+								var si:Int = open.index + 1;
+								while (si <= close.index) {
+									var sInfo:Null<TokenInfo> = parsedCode.tokenList.tokens[si];
+									si++;
+									if (sInfo == null) continue;
+									spanLen += sInfo.text.length;
+									switch sInfo.whitespaceAfter {
+										case None:
+										case Space: spanLen += Math.floor(Math.max(1, sInfo.spacesAfter));
+										case Newline: spanLen += 1; // newline → space when unwrapped
+									}
+								}
+								var lineLen:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(lineStart))
+									+ calcLineLengthBefore(open)
+									+ calcTokenLength(open)
+									+ spanLen;
+								if (lineLen > config.wrapping.maxLineLength) {
+									canUnwrap = false;
+									trace('DBG NoWrap BLOCKED: lineLen=$lineLen open=$open');
+								}
+							}
+						}
+						if (canUnwrap) noWrappingBetween(open, close, false);
 					case _:
 						noWrappingBetween(open, close, false);
 				}
@@ -1011,7 +1041,26 @@ class MarkWrappingBase extends MarkerBase {
 		if (place.overrideAdditionalIndent != null) {
 			additionalIndent = place.overrideAdditionalIndent;
 		}
+		// Save POpen leading break — chain wrappings (opAdd/opBool) call noLineEndAfter
+		// which removes callParameter's break. Find the POpen: it's place.start for opAdd
+		// chains, or the next token for opBool chains (whose start is the CIdent before POpen).
+		var savedPOpen:Null<TokenTree> = null;
+		if (place.origin != CallParameterWrapping && place.start != null) {
+			if (place.start.tok.match(POpen) && isNewLineAfter(place.start)) {
+				savedPOpen = place.start;
+			} else {
+				var nxt:TokenInfo = getNextToken(place.start);
+				if (nxt != null && nxt.token.tok.match(POpen) && isNewLineAfter(nxt.token)) savedPOpen = nxt.token;
+			}
+		}
 		applyRule(place.origin, rule, place.start, place.end, place.items, additionalIndent, place.useTrailing);
+		// Restore POpen leading break if removed
+		if (savedPOpen != null) {
+			if (!isNewLineAfter(savedPOpen)) {
+				lineEndAfter(savedPOpen);
+				trace('DBG restore: origin=${place.origin} savedPOpen=$savedPOpen');
+			}
+		}
 		// After fillLineWithLeadingBreak, immediately move PClose to its own line
 		// so inner items see correct line length (without trailing close parens).
 		if (rule.type == FillLineWithLeadingBreak && place.end != null && isNewLineAfter(place.start)) {

@@ -1,0 +1,36 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 100,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test():Void {
+		container.addChild(dot = createDot(rect.x + rect.width, rect.y + rect.height / 2.0));
+	}
+}
+
+---
+
+class Main {
+	function test():Void {
+		container.addChild(dot = createDot(rect.x + rect.width, rect.y + rect.height / 2.0));
+	}
+}

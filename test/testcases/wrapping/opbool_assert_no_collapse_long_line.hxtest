@@ -1,0 +1,66 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"opBoolChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 3}, {"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "totalItemLength <= n", "value": 120}, {"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "afterLast"
+				}
+			]
+		},
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test():Bool {
+		return assert(
+			mockData.callsWithoutTimestamp.length == 1 &&
+			mockData.callsWithoutTimestamp[0].text == "<expected>server</expected>" && result.uploadBlockedCalls.length == 1 &&
+			result.renameLocalCalls.length == 0
+		);
+	}
+}
+
+---
+
+class Main {
+	function test():Bool {
+		return assert(
+			mockData.callsWithoutTimestamp.length == 1 &&
+			mockData.callsWithoutTimestamp[0].text == "<expected>server</expected>" && result.uploadBlockedCalls.length == 1 &&
+			result.renameLocalCalls.length == 0
+		);
+	}
+}

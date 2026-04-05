@@ -9,6 +9,7 @@ class MarkWrapping extends MarkWrappingBase {
 	var ternaryWraps:Array<{itemStart:TokenTree, question:TokenTree, dblDot:TokenTree}> = [];
 	var arrowWraps:Array<TokenTree> = [];
 	var sharpChainExtensions:Array<TokenTree> = [];
+	var multiParamOpAddTokens:Array<TokenTree> = [];
 
 	public function run() {
 		var wrappableTokens:Array<TokenTree> = parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
@@ -84,6 +85,19 @@ class MarkWrapping extends MarkWrappingBase {
 		for (token in sharpChainExtensions) {
 			additionalIndent(token, 1);
 		}
+		// Fix indent for opAdd continuations inside multi-param calls.
+		// These chains are skipped by markSingleOpAddChain (hasCommasBetween),
+		// so no wrapping sets additionalIndent. Add +1 on the first token of each
+		// continuation line: either the + itself (beforeLast) or the next token (afterLast).
+		// Set additionalIndent on all opAdd tokens and their successors in multi-param calls.
+		// Only tokens that actually start new lines will use it (CodeLines checks on line start).
+		for (token in multiParamOpAddTokens) {
+			additionalIndent(token, 1);
+			var next:Null<TokenInfo> = getNextToken(token);
+			if (next != null) {
+				additionalIndent(next.token, 1);
+			}
+		}
 		lateDetectTernaries();
 		applyTernaryWrapping();
 		applyArrowWrapping();
@@ -127,6 +141,39 @@ class MarkWrapping extends MarkWrappingBase {
 				}
 			}
 			if (!hasInnerBreak) continue;
+			// Don't collapse if content has chain operators AND full span exceeds maxLineLength.
+			// Nested calls (no chain ops) should still collapse.
+			var hasChainOps:Bool = false;
+			var spanLen:Int = 0;
+			var si:Int = place.start.index + 1;
+			while (si <= pClose.index) {
+				var sInfo:Null<TokenInfo> = parsedCode.tokenList.tokens[si];
+				si++;
+				if (sInfo == null) continue;
+				spanLen += sInfo.text.length;
+				switch sInfo.whitespaceAfter {
+					case None:
+					case Space:
+						spanLen += Math.floor(Math.max(1, sInfo.spacesAfter));
+					case Newline:
+						spanLen += 1;
+				}
+				switch sInfo.token.tok {
+					case Binop(OpBoolAnd), Binop(OpBoolOr):
+						hasChainOps = true;
+					case _:
+				}
+			}
+			if (hasChainOps) {
+				var lineStart:Null<TokenTree> = findLineStartToken(place.start);
+				if (lineStart != null) {
+					var fullLen:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(lineStart))
+						+ calcLineLengthBefore(place.start)
+						+ calcTokenLength(place.start)
+						+ spanLen;
+					if (fullLen > config.wrapping.maxLineLength) continue;
+				}
+			}
 			// Try removing outer leading break — check if opening line fits
 			noLineEndAfter(place.start);
 			noLineEndBefore(pClose);
@@ -2493,9 +2540,13 @@ class MarkWrapping extends MarkWrappingBase {
 					case At:
 						return;
 					case Call:
-						// Multi-argument calls: skip opAdd chain, let callParameter wrap at commas.
+						// Multi-argument calls: skip opAdd chain wrapping, let callParameter wrap at commas.
+						// But collect opAdd operators for post-queue indent fix.
 						// Single-argument calls: opAdd chain is the only way to break long arithmetic.
-						if (hasCommasBetween(chainStart)) return;
+						if (hasCommasBetween(chainStart)) {
+							collectOpAddTokensRecursive(itemContainer, multiParamOpAddTokens);
+							return;
+						}
 					case Parameter:
 					case SwitchCondition:
 					case WhileCondition:
@@ -2546,6 +2597,29 @@ class MarkWrapping extends MarkWrappingBase {
 			switch (item.last.tok) {
 				case Binop(OpAdd), Binop(OpSub):
 					wrapAfter(item.last, false);
+				default:
+			}
+		}
+	}
+
+	/** Recursively collect OpAdd/OpSub tokens from a node's children for post-queue indent fix.
+	 * Skips unary minus (OpSub preceded by POpen, Comma, or line start — not a binary chain). */
+	function collectOpAddTokensRecursive(node:TokenTree, tokens:Array<TokenTree>) {
+		if (node.children == null) return;
+		for (child in node.children) {
+			switch (child.tok) {
+				case Binop(OpAdd), Binop(OpSub):
+					// Skip unary minus: OpSub right after ( or , is negation, not subtraction
+					var prev:Null<TokenInfo> = getPreviousToken(child);
+					if (prev != null) {
+						switch (prev.token.tok) {
+							case POpen, Comma:
+								continue;
+							default:
+						}
+					}
+					tokens.push(child);
+					collectOpAddTokensRecursive(child, tokens);
 				default:
 			}
 		}
