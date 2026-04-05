@@ -268,6 +268,10 @@ class MarkWrapping extends MarkWrappingBase {
 			noLineEndAfter(place.start);
 			noLineEndBefore(pClose);
 			if (calcLineLength(place.start) <= config.wrapping.maxLineLength) {
+				// After collapsing outer single-arg call, inner multi-arg fills
+				// may have been calculated with a deeper indent (based on the
+				// pre-collapse state). Re-evaluate them with the updated indent.
+				reEvaluateInnerCallWrapping(place.start, pClose);
 				continue; // fits — keep collapsed
 			}
 			// Call doesn't fit on one line. If there's a method chain after PClose,
@@ -291,6 +295,27 @@ class MarkWrapping extends MarkWrappingBase {
 				noLineEndAfter(place.start);
 				noLineEndBefore(pClose);
 			}
+		}
+	}
+
+	/**
+	 * After collapsing an outer single-arg call, re-evaluate inner multi-arg
+	 * call fills whose indent was calculated based on the pre-collapse state.
+	 */
+	function reEvaluateInnerCallWrapping(outerStart:TokenTree, outerClose:TokenTree) {
+		for (innerPlace in wrappingQueue) {
+			if (innerPlace.origin != CallParameterWrapping) continue;
+			if (innerPlace.items == null || innerPlace.items.length <= 1) continue;
+			if (innerPlace.start == null) continue;
+			if (innerPlace.start.index <= outerStart.index || innerPlace.start.index >= outerClose.index) continue;
+			if (!isNewLineAfter(innerPlace.start)) continue;
+			var innerPClose:Null<TokenTree> = innerPlace.end;
+			if (innerPClose == null) innerPClose = getCloseToken(innerPlace.start);
+			if (innerPClose == null) continue;
+			// Undo existing fill breaks and re-apply with corrected indent
+			noWrappingBetween(innerPlace.start, innerPClose, false);
+			noLineEndBefore(innerPClose);
+			applyWrappingPlace(innerPlace);
 		}
 	}
 

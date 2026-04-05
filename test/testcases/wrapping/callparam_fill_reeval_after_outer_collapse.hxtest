@@ -1,0 +1,56 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		outer.show(text, () -> {
+			if (disposed) {
+				if (flag) {
+					outer.dispatch(new ChangeEvent(
+						ChangeEvent.UPDATE, _targets, ShareUtil.createEmptyShareUsers(), users, ShareUtil.createEmptyShareUsers()
+					));
+				}
+			}
+		});
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		outer.show(text, () -> {
+			if (disposed) {
+				if (flag) {
+					outer.dispatch(new ChangeEvent(
+						ChangeEvent.UPDATE, _targets, ShareUtil.createEmptyShareUsers(), users, ShareUtil.createEmptyShareUsers()
+					));
+				}
+			}
+		});
+	}
+}
