@@ -91,7 +91,10 @@ class MarkWrapping extends MarkWrappingBase {
 		// continuation line: either the + itself (beforeLast) or the next token (afterLast).
 		// Set additionalIndent on all opAdd tokens and their successors in multi-param calls.
 		// Only tokens that actually start new lines will use it (CodeLines checks on line start).
+		// Skip indent for leading operators (wrapBefore) — the operator itself signals continuation.
 		for (token in multiParamOpAddTokens) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[token.index];
+			if (info != null && !info.wrapAfter) continue;
 			additionalIndent(token, 1);
 			var next:Null<TokenInfo> = getNextToken(token);
 			if (next != null) {
@@ -2697,7 +2700,27 @@ class MarkWrapping extends MarkWrappingBase {
 						// But collect opAdd operators for post-queue indent fix.
 						// Single-argument calls: opAdd chain is the only way to break long arithmetic.
 						if (hasCommasBetween(chainStart)) {
+							var prevCount:Int = multiParamOpAddTokens.length;
 							collectOpAddTokensRecursive(itemContainer, multiParamOpAddTokens);
+							// Evaluate opAddSubChain rules to determine break location.
+							// If the matching rule uses beforeLast, convert wrapAfter marks
+							// to wrapBefore so CodeLine breaks before the operator (leading +).
+							var ruleItems:Array<WrappableItem> = [];
+							var firstToken:Null<TokenInfo> = getNextToken(chainStart);
+							if (firstToken != null) {
+								var itemStart:TokenTree = firstToken.token;
+								var lastStart:TokenTree = collectOpAddItems(itemContainer, ruleItems, itemStart);
+								ruleItems.push(makeWrappableItem(lastStart, TokenTreeCheckUtils.getLastToken(lastStart)));
+								if (ruleItems.length > 1) {
+									var rule:WrapRule = determineWrapType2(config.wrapping.opAddSubChain, chainStart, ruleItems);
+									if (rule.location == BeforeLast && rule.type != NoWrap && rule.type != Keep) {
+										for (i in prevCount...multiParamOpAddTokens.length) {
+											wrapAfter(multiParamOpAddTokens[i], false);
+											wrapBefore(multiParamOpAddTokens[i], true);
+										}
+									}
+								}
+							}
 							return;
 						}
 					case Parameter:

@@ -24,8 +24,8 @@
 class Main {
 	function test():Void {
 		var x = new Label(
-			"allowed to have" + " " + maxA + " " + "drills and" + " " +
-				maxB + " " + "sessions" + ".",
+			"you are allowed to have" + " " + maxA + " " + "documents and" + " " +
+				maxB + " " + "archives" + ".",
 			getStyle(),
 			430, 20
 		);
@@ -37,8 +37,8 @@ class Main {
 class Main {
 	function test():Void {
 		var x = new Label(
-			"allowed to have" + " " + maxA + " " + "drills and" + " " + maxB + " " + "sessions" +
-				".",
+			"you are allowed to have" + " " + maxA + " " + "documents and" + " " + maxB + " "
+			+ "archives" + ".",
 			getStyle(),
 			430, 20
 		);

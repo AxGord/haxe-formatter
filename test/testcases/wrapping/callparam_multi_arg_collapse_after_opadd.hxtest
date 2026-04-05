@@ -59,7 +59,7 @@ class Main {
 		manager.getInstance().add(
 			note,
 			func('1. To resolve the issue, press the Restart App button below', 20033) + '\n' + func('2. Application will close', 20034)
-				+ '\n' + func('3. Open Application and login', 20035)
+			+ '\n' + func('3. Open Application and login', 20035)
 		);
 	}
 }

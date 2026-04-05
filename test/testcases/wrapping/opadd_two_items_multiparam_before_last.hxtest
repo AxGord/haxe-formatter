@@ -31,7 +31,7 @@
 
 class Main {
 	function test():Void {
-		localize("Press the button to start migration " + "and transfer your data to the new version " + "of the application.", 10212);
+		localize("Moving your important files has unfortunately failed during processing. " + "Press the Help button to learn how to move your files manually or contact support.", 10219);
 	}
 }
 
@@ -40,9 +40,9 @@ class Main {
 class Main {
 	function test():Void {
 		localize(
-			"Press the button to start migration " + "and transfer your data to the new version "
-			+ "of the application.",
-			10212
+			"Moving your important files has unfortunately failed during processing. "
+			+ "Press the Help button to learn how to move your files manually or contact support.",
+			10219
 		);
 	}
 }
