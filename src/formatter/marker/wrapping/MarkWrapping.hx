@@ -118,11 +118,73 @@ class MarkWrapping extends MarkWrappingBase {
 	function reEvaluateSingleArgCallParam() {
 		for (place in wrappingQueue) {
 			if (place.origin != CallParameterWrapping) continue;
-			if (place.items == null || place.items.length != 1) continue;
+			if (place.items == null || place.items.length < 1) continue;
 			if (place.start == null) continue;
 			var pClose:Null<TokenTree> = place.end;
 			if (pClose == null) pClose = getCloseToken(place.start);
 			if (pClose == null) continue;
+			// Multi-arg calls: try collapsing if all items are on one wrapped line
+			// and the collapsed call fits (e.g. after opAdd chain shortened the line).
+			if (place.items.length > 1) {
+				if (!isNewLineAfter(place.start)) continue;
+				var hadPCloseBreak:Bool = isNewLineBefore(pClose);
+				noLineEndAfter(place.start);
+				if (hadPCloseBreak) noLineEndBefore(pClose);
+				// Check no remaining breaks between POpen and PClose
+				var hasRemainingBreaks:Bool = false;
+				var ri:Int = place.start.index + 1;
+				while (ri < pClose.index) {
+					var rInfo:Null<TokenInfo> = parsedCode.tokenList.tokens[ri];
+					ri++;
+					if (rInfo != null && rInfo.whitespaceAfter == Newline) {
+						hasRemainingBreaks = true;
+						break;
+					}
+				}
+				if (hasRemainingBreaks) {
+					lineEndAfter(place.start);
+					if (hadPCloseBreak) lineEndBefore(pClose);
+					continue;
+				}
+				if (calcLineLength(place.start) <= config.wrapping.maxLineLength) {
+					continue; // Fits on one line — keep collapsed
+				}
+				// Line exceeds after collapse — try adding an opAdd break after PClose.
+				// Collect OpAdd/OpSub tokens, then try the rightmost break that makes
+				// the start line fit (fillLine beforeLast semantics).
+				var opTokens:Array<TokenTree> = [];
+				var wi:Int = pClose.index + 1;
+				while (wi < parsedCode.tokenList.tokens.length) {
+					var wInfo:Null<TokenInfo> = parsedCode.tokenList.tokens[wi];
+					wi++;
+					if (wInfo == null) continue;
+					if (wInfo.whitespaceAfter == Newline) break;
+					switch wInfo.token.tok {
+						case Binop(OpAdd), Binop(OpSub):
+							opTokens.push(wInfo.token);
+						case POpen, BrOpen, BkOpen:
+							var close:Null<TokenTree> = getCloseToken(wInfo.token);
+							if (close != null) wi = close.index + 1;
+						case _:
+					}
+				}
+				var addedBreak:Bool = false;
+				var oi:Int = opTokens.length - 1;
+				while (oi >= 0) {
+					lineEndBefore(opTokens[oi]);
+					if (calcLineLength(place.start) <= config.wrapping.maxLineLength) {
+						addedBreak = true;
+						break;
+					}
+					noLineEndBefore(opTokens[oi]);
+					oi--;
+				}
+				if (addedBreak) continue;
+				// Doesn't fit — restore call wrapping
+				lineEndAfter(place.start);
+				if (hadPCloseBreak) lineEndBefore(pClose);
+				continue;
+			}
 			if (!isNewLineAfter(place.start)) {
 				// No leading break — NoWrap collapsed this call.
 				// If the content has top-level comment-forced breaks (CommentLine between
@@ -208,9 +270,27 @@ class MarkWrapping extends MarkWrappingBase {
 			if (calcLineLength(place.start) <= config.wrapping.maxLineLength) {
 				continue; // fits — keep collapsed
 			}
-			// Doesn't fit — restore
+			// Call doesn't fit on one line. If there's a method chain after PClose,
+			// prefer breaking at the chain over wrapping inside the call.
+			var nextAfterClose:Null<TokenInfo> = getNextToken(pClose);
+			if (nextAfterClose != null && nextAfterClose.token.tok.match(Dot)) {
+				lineEndBefore(nextAfterClose.token);
+				if (calcLineLength(place.start) <= config.wrapping.maxLineLength
+					&& calcLineLength(nextAfterClose.token) <= config.wrapping.maxLineLength) {
+					continue; // Method chain break is better
+				}
+				noLineEndBefore(nextAfterClose.token);
+			}
+			// Doesn't fit on one line — check if wrapping actually helps.
+			// If the wrapped content line also exceeds maxLineLength
+			// (e.g. single long string literal), wrapping is futile — keep unwrapped.
 			lineEndAfter(place.start);
 			lineEndBefore(pClose);
+			var contentToken:Null<TokenTree> = place.items[0].first;
+			if (contentToken != null && calcLineLength(contentToken) > config.wrapping.maxLineLength) {
+				noLineEndAfter(place.start);
+				noLineEndBefore(pClose);
+			}
 		}
 	}
 

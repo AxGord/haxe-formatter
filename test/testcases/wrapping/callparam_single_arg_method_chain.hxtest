@@ -1,0 +1,48 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		call(
+			func('Delete', 31),
+			func('Are you sure you want to delete user <b>{value}</b>? This will cause a problem with session access for this user.')
+				.findAndReplaceValue(event.userEmail)
+		);
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		call(
+			func('Delete', 31),
+			func('Are you sure you want to delete user <b>{value}</b>? This will cause a problem with session access for this user.')
+				.findAndReplaceValue(event.userEmail)
+		);
+	}
+}

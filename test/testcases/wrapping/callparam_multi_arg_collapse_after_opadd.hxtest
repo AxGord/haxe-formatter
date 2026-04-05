@@ -1,0 +1,65 @@
+{
+	"indentation": {
+		"tabWidth": 4
+	},
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"opAddSubChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "beforeLast"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		manager.getInstance().add(
+			note,
+			func('1. To resolve the issue, press the Restart App button below', 20033) + '\n' + func('2. Application will close', 20034)
+				+ '\n' + func('3. Open Application and login', 20035)
+		);
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		manager.getInstance().add(
+			note,
+			func('1. To resolve the issue, press the Restart App button below', 20033) + '\n' + func('2. Application will close', 20034)
+				+ '\n' + func('3. Open Application and login', 20035)
+		);
+	}
+}

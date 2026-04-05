@@ -1,0 +1,46 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		call(
+			func('Move'),
+			func('When moving, the item will not be available within the shared collection for users.\nAre you sure you want to perform the move?')
+		);
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		call(
+			func('Move'),
+			func('When moving, the item will not be available within the shared collection for users.\nAre you sure you want to perform the move?')
+		);
+	}
+}
