@@ -1,0 +1,59 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		setElements([
+			new Block(t('user name', 10001), BaseStyle.getTextStyle(), null, BaseStyle.PREFERRED_ROW_HEIGHT),
+			new Filler(1, 4),
+			input1,
+			#if !target
+			new Filler(1, 10), new Block(t('pick the item', 10005), BaseStyle.getTextStyle(), null, BaseStyle.PREFERRED_ROW_HEIGHT), new Filler(1, 4), input2,
+			#end
+			new Filler(1, 25),
+		]);
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		setElements([
+			new Block(t('user name', 10001), BaseStyle.getTextStyle(), null, BaseStyle.PREFERRED_ROW_HEIGHT),
+			new Filler(1, 4),
+			input1,
+			#if !target
+			new Filler(1, 10),
+			new Block(t('pick the item', 10005), BaseStyle.getTextStyle(), null, BaseStyle.PREFERRED_ROW_HEIGHT),
+			new Filler(1, 4),
+			input2,
+			#end
+			new Filler(1, 25),
+		]);
+	}
+}

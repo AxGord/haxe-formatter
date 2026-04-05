@@ -571,16 +571,31 @@ class MarkWrappingBase extends MarkerBase {
 
 	function makeWrappableItems(token:TokenTree):Array<WrappableItem> {
 		var items:Array<WrappableItem> = [];
-		var lastIndex:Int = -1;
 		if (token.children == null) {
 			return items;
 		}
-		for (child in token.children) {
+		collectWrappableItems(token.children, items);
+		return items;
+	}
+
+	function collectWrappableItems(children:Array<TokenTree>, items:Array<WrappableItem>, skipFirst:Bool = false) {
+		var lastIndex:Int = -1;
+		for (child in children) {
+			if (skipFirst) {
+				skipFirst = false;
+				continue;
+			}
 			switch (child.tok) {
 				case PClose, BkClose, BrClose:
-					return items;
+					return;
 				case Binop(OpGt):
-					return items;
+					return;
+				case Sharp(_):
+					if (!isInlineSharp(child)) {
+						collectWrappableItemsFromSharp(child, items);
+						continue;
+					}
+				// Inline Sharp — exit switch, process as single item below
 				default:
 			}
 			if (child.index <= lastIndex) {
@@ -589,6 +604,14 @@ class MarkWrappingBase extends MarkerBase {
 			var endToken:Null<TokenTree> = findItemEnd(child);
 			if (endToken == null) {
 				continue;
+			}
+			// Inside Sharp blocks, commas are siblings (not children of the expression).
+			// Extend the item to include the trailing comma so wrapping keeps it attached.
+			if (!endToken.tok.match(Comma)) {
+				var nextInfo:Null<TokenInfo> = getNextToken(endToken);
+				if (nextInfo != null && nextInfo.token.tok.match(Comma)) {
+					endToken = nextInfo.token;
+				}
 			}
 			lastIndex = endToken.index;
 
@@ -602,16 +625,46 @@ class MarkWrappingBase extends MarkerBase {
 			if (!sameLine) {
 				lastLineLength = calcLineLengthAfter(endToken);
 			}
-			var item:WrappableItem = {
+			items.push({
 				first: child,
 				last: endToken,
 				multiline: !sameLine,
 				firstLineLength: firstLineLength,
 				lastLineLength: lastLineLength
-			}
-			items.push(item);
+			});
 		}
-		return items;
+	}
+
+	function collectWrappableItemsFromSharp(sharp:TokenTree, items:Array<WrappableItem>) {
+		if (sharp.children == null) return;
+		switch (sharp.tok) {
+			case Sharp(MarkLineEnds.SHARP_END):
+				return;
+			case Sharp(MarkLineEnds.SHARP_IF), Sharp(MarkLineEnds.SHARP_ELSE_IF):
+				collectWrappableItems(sharp.children, items, true);
+			case Sharp(MarkLineEnds.SHARP_ELSE):
+				collectWrappableItems(sharp.children, items);
+			default:
+				collectWrappableItems(sharp.children, items);
+		}
+	}
+
+	/** Check if a Sharp block has its content on the same line as the directive. */
+	function isInlineSharp(sharp:TokenTree):Bool {
+		if (sharp.children == null || sharp.children.length <= 0) return true;
+		switch (sharp.tok) {
+			case Sharp(MarkLineEnds.SHARP_IF), Sharp(MarkLineEnds.SHARP_ELSE_IF):
+				if (sharp.children.length > 1) {
+					return parsedCode.isOriginalSameLine(sharp, sharp.children[1]);
+				}
+				return true;
+			case Sharp(MarkLineEnds.SHARP_ELSE):
+				return parsedCode.isOriginalSameLine(sharp, sharp.children[0]);
+			case Sharp(MarkLineEnds.SHARP_END):
+				return true;
+			default:
+				return false;
+		}
 	}
 
 	function findItemEnd(child:TokenTree):Null<TokenTree> {
