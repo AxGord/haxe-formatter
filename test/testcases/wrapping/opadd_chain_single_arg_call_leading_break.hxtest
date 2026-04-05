@@ -44,9 +44,9 @@ class Main {
 class Main {
 	function test():Void {
 		builder.build(
-			'aaaa bbbbb (' + 'cccccccc ddddddddd eee ffff ggggggg hhhh, ' + 'iiiiii jjjjjjj kkk llll, '
-				+ 'mmmmmm nnnnnnn, ' + 'oooooo ppppppppp nnnnnnn, ' + 'qqqqqq rrrr sss tttt, ' + 'uuuuuuuuuuuuuuu vvvv, '
-				+ 'wwwwwwwwwwwwwwwwwwwwwww xxxxxx, ' + 'yyyyyyyy zzzzzzzz kkk llll' + ');'
+			'aaaa bbbbb (' + 'cccccccc ddddddddd eee ffff ggggggg hhhh, ' + 'iiiiii jjjjjjj kkk llll, ' + 'mmmmmm nnnnnnn, '
+			+ 'oooooo ppppppppp nnnnnnn, ' + 'qqqqqq rrrr sss tttt, ' + 'uuuuuuuuuuuuuuu vvvv, ' + 'wwwwwwwwwwwwwwwwwwwwwww xxxxxx, '
+			+ 'yyyyyyyy zzzzzzzz kkk llll' + ');'
 		);
 	}
 }

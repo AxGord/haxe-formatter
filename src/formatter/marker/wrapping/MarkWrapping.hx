@@ -252,7 +252,7 @@ class MarkWrapping extends MarkWrappingBase {
 						spanLen += 1;
 				}
 				switch sInfo.token.tok {
-					case Binop(OpBoolAnd), Binop(OpBoolOr):
+					case Binop(OpBoolAnd), Binop(OpBoolOr), Binop(OpAdd), Binop(OpSub):
 						hasChainOps = true;
 					case _:
 				}

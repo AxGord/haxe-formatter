@@ -1077,11 +1077,8 @@ class MarkWrappingBase extends MarkerBase {
 				if (nxt != null && nxt.token.tok.match(POpen) && isNewLineAfter(nxt.token)) savedPOpen = nxt.token;
 			}
 		}
-		// If opAdd chain is inside a call with a leading break, add continuation indent
-		// so `+ 'text'` is visually distinct from the first content line.
-		if (savedPOpen != null && place.origin == OpAddChainWrapping) {
-			additionalIndent += 1;
-		}
+		// OpAdd chain inside a call with a leading break: no extra indent —
+		// continuation `+ 'text'` aligns with the first content line.
 		applyRule(place.origin, rule, place.start, place.end, place.items, additionalIndent, place.useTrailing);
 		// Restore POpen leading break if removed
 		if (savedPOpen != null) {
