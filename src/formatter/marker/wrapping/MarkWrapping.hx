@@ -563,6 +563,9 @@ class MarkWrapping extends MarkWrappingBase {
 				var prev:TokenInfo = getPreviousToken(token);
 				if (prev != null) {
 					switch (prev.token.tok) {
+						case Kwd(KwdElse):
+							// Don't override line end before object literal body after else;
+							// MarkSameLine controls else-body placement for expression-if
 						case Kwd(_):
 							noLineEndBefore(token);
 							whitespace(token, Before);

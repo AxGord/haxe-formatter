@@ -1,0 +1,31 @@
+{
+	"sameLine": {
+		"expressionIf": "next"
+	}
+}
+
+---
+
+class Main {
+	function getResolution():VideoResolution {
+		return if (resHigh.selected)
+			{width: WIDTH_HIGH, height: HEIGHT_HIGH}
+		else if (resLow.selected)
+			{width: WIDTH_LOW, height: HEIGHT_LOW}
+		else
+			{width: WIDTH_MEDIUM, height: HEIGHT_MEDIUM};
+	}
+}
+
+---
+
+class Main {
+	function getResolution():VideoResolution {
+		return if (resHigh.selected)
+			{width: WIDTH_HIGH, height: HEIGHT_HIGH}
+		else if (resLow.selected)
+			{width: WIDTH_LOW, height: HEIGHT_LOW}
+		else
+			{width: WIDTH_MEDIUM, height: HEIGHT_MEDIUM};
+	}
+}

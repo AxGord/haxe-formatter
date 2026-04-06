@@ -251,7 +251,7 @@ class MarkSameLine extends MarkerBase {
 					if (prev == null) {
 						return;
 					}
-					if (prev.token.tok.match(BrClose)) {
+					if (prev.token.tok.match(BrClose) && TokenTreeCheckUtils.getBrOpenType(prev.token.parent) != ObjectDecl) {
 						applySameLinePolicyChained(token, config.sameLine.ifBody, config.sameLine.ifElse);
 					}
 					return;
@@ -264,7 +264,7 @@ class MarkSameLine extends MarkerBase {
 					if (prev == null) {
 						return;
 					}
-					if (prev.token.tok.match(BrClose)) {
+					if (prev.token.tok.match(BrClose) && TokenTreeCheckUtils.getBrOpenType(prev.token.parent) != ObjectDecl) {
 						applySameLinePolicyChained(token, Keep, Keep);
 					}
 					return;
@@ -275,7 +275,7 @@ class MarkSameLine extends MarkerBase {
 					}
 					lineEndBefore(token);
 					var prev:Null<TokenInfo> = getPreviousToken(token);
-					if (prev != null && prev.token.tok.match(BrClose)) {
+					if (prev != null && prev.token.tok.match(BrClose) && TokenTreeCheckUtils.getBrOpenType(prev.token.parent) != ObjectDecl) {
 						applySameLinePolicyChained(token, config.sameLine.ifBody, config.sameLine.ifElse);
 					}
 					return;
