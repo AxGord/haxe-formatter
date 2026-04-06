@@ -13,7 +13,6 @@ import testcases.SameLineTestCases;
 import testcases.WhitespaceTestCases;
 import testcases.WrappingTestCases;
 import utest.Runner;
-import utest.ui.text.DiagnosticsReport;
 
 class TestMain {
 	public function new() {
@@ -60,7 +59,6 @@ class TestMain {
 		});
 
 		// DiagnosticsReport calls Sys.exit() before onComplete — don't use it
-		// new DiagnosticsReport(runner);
 		for (test in tests) {
 			runner.addCase(test());
 		}

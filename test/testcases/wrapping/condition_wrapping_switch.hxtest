@@ -1,0 +1,36 @@
+{
+	"wrapping": {
+		"maxLineLength": 80,
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		switch (veryLongVariableNameAlpha + veryLongVariableNameBravo + veryLongVariableNameCharlie) {
+			case 0:
+				doSomething();
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		switch (veryLongVariableNameAlpha + veryLongVariableNameBravo + veryLongVariableNameCharlie) {
+			case 0:
+				doSomething();
+		}
+	}
+}

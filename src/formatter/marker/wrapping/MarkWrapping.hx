@@ -866,9 +866,6 @@ class MarkWrapping extends MarkWrappingBase {
 	}
 
 	function wrapExpressionParen(token:TokenTree) {
-		if (config.wrapping.expressionWrapping.rules.length == 0) {
-			return;
-		}
 		if ((token.children == null) || (token.children.length <= 0)) {
 			return;
 		}
@@ -876,10 +873,6 @@ class MarkWrapping extends MarkWrappingBase {
 		if (pClose == null) {
 			return;
 		}
-		// Measure hypothetical line: indent + prefix (tokens before POpen) + content span (POpen..PClose).
-		// Can't use calcLineLength — it sees short lines from pre-existing formatting.
-		var indent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(token));
-		var prefixLength:Int = calcLineLengthBefore(token);
 		var contentLength:Int = calcSpanLength(token, pClose);
 		// Skip short content — wrapping small grouping parens (e.g. `(a && b)`) is not useful.
 		if (contentLength < Std.int(config.wrapping.maxLineLength / 2)) {
@@ -893,6 +886,7 @@ class MarkWrapping extends MarkWrappingBase {
 		// Skip expression parens that are part of an opBoolChain item (preceded by &&/||),
 		// UNLESS the paren content + wrapping indent would exceed maxLineLength.
 		// After opBoolChain wrapping, the paren gets at least +1 indent level.
+		var indent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(token));
 		var prev:Null<TokenInfo> = getPreviousToken(token);
 		if (prev != null) {
 			switch (prev.token.tok) {
@@ -904,7 +898,9 @@ class MarkWrapping extends MarkWrappingBase {
 				default:
 			}
 		}
-		if (indent + prefixLength + contentLength > config.wrapping.maxLineLength) {
+		var items:Array<WrappableItem> = makeWrappableItems(token);
+		var rule:WrapRule = determineWrapType2(config.wrapping.expressionWrapping, token, items);
+		if (rule.type != NoWrap && rule.type != Keep) {
 			expressionWraps.push(token);
 		}
 	}
@@ -929,20 +925,6 @@ class MarkWrapping extends MarkWrappingBase {
 			}
 		}
 		return length;
-	}
-
-	/** Check if token is inside or is a Call POpen. */
-	function isInsideCallParen(token:TokenTree):Bool {
-		var current:Null<TokenTree> = token;
-		while (current != null) {
-			switch (current.tok) {
-				case POpen:
-					return TokenTreeCheckUtils.getPOpenType(current) == Call;
-				default:
-					current = current.parent;
-			}
-		}
-		return false;
 	}
 
 	function isComprehension(pOpen:TokenTree):Bool {
@@ -1077,7 +1059,7 @@ class MarkWrapping extends MarkWrappingBase {
 			if (pClose == null) {
 				continue;
 			}
-			if (hasInnerParenWrapping(token, pClose) && !hasChainBreaks(token, pClose)) {
+			if (findWrappedPOpen(token, pClose) && !hasChainBreaks(token, pClose)) {
 				// Skip if inner paren wrapping handles the line length.
 				// Exception: when opBoolChain is inside and full span exceeds,
 				// condition wrapping is needed so opBoolChain can re-evaluate.
@@ -1306,10 +1288,6 @@ class MarkWrapping extends MarkWrappingBase {
 		return false;
 	}
 
-	function hasInnerParenWrapping(open:TokenTree, close:TokenTree):Bool {
-		return findWrappedPOpen(open, close);
-	}
-
 	function findWrappedPOpen(token:TokenTree, limit:TokenTree):Bool {
 		if (token.children == null) {
 			return false;
@@ -1332,8 +1310,8 @@ class MarkWrapping extends MarkWrappingBase {
 		return false;
 	}
 
-	function markTernaryChaining() {
-		var ternaryTokens:Array<TokenTree> = parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
+	function findTernaryQuestionTokens():Array<TokenTree> {
+		return parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
 			switch (token.tok) {
 				case Question:
 					if (token.hasChildren()) {
@@ -1347,6 +1325,10 @@ class MarkWrapping extends MarkWrappingBase {
 			}
 			return GoDeeper;
 		});
+	}
+
+	function markTernaryChaining() {
+		var ternaryTokens:Array<TokenTree> = findTernaryQuestionTokens();
 		for (question in ternaryTokens) {
 			markSingleTernaryChain(question);
 		}
@@ -1395,20 +1377,7 @@ class MarkWrapping extends MarkWrappingBase {
 	 *  operator breaks (opBool/opAdd) placed by the wrapping queue shortened the line,
 	 *  making determineWrapType2 see a shorter line and skip detection. */
 	function lateDetectTernaries() {
-		var ternaryTokens:Array<TokenTree> = parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
-			switch (token.tok) {
-				case Question:
-					if (token.hasChildren()) {
-						for (child in token.children) {
-							if (child.tok.match(DblDot)) {
-								return FoundGoDeeper;
-							}
-						}
-					}
-				default:
-			}
-			return GoDeeper;
-		});
+		var ternaryTokens:Array<TokenTree> = findTernaryQuestionTokens();
 		for (question in ternaryTokens) {
 			// Skip if already detected
 			var alreadyDetected:Bool = false;
@@ -1449,7 +1418,6 @@ class MarkWrapping extends MarkWrappingBase {
 				+ indenter.calcAbsoluteIndent(indenter.calcIndent(condToken));
 			if (spanWithPrefix <= config.wrapping.maxLineLength) continue;
 			// Temporarily remove ALL breaks in the ternary to get true line length
-			var saved:Array<{idx:Int, ws:formatter.codedata.WhitespaceAfterType}> = [];
 			// Start from the line beginning (walk back to find tokens before condToken on same line)
 			var startIdx:Int = condToken.index - 1;
 			while (startIdx >= 0) {
@@ -1458,22 +1426,9 @@ class MarkWrapping extends MarkWrappingBase {
 				startIdx--;
 			}
 			startIdx = Std.int(Math.max(0, startIdx + 1));
-			var idx:Int = startIdx;
-			while (idx <= lastToken.index) {
-				var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
-				idx++;
-				if (info == null) continue;
-				if (info.whitespaceAfter == Newline) {
-					saved.push({idx: idx - 1, ws: Newline});
-					info.whitespaceAfter = if (info.spacesAfter <= 0) None else Space;
-				}
-			}
+			var saved = saveAndRemoveBreaks(startIdx, lastToken.index);
 			lineLen = calcLineLength(condToken);
-			// Restore breaks
-			for (s in saved) {
-				var info:Null<TokenInfo> = parsedCode.tokenList.tokens[s.idx];
-				if (info != null) info.whitespaceAfter = s.ws;
-			}
+			restoreBreaks(saved);
 			if (lineLen > config.wrapping.maxLineLength) {
 				ternaryWraps.push({itemStart: condToken, question: question, dblDot: dblDot});
 			}
@@ -1616,10 +1571,10 @@ class MarkWrapping extends MarkWrappingBase {
 		return false;
 	}
 
-	/** Post-queue: break long lines at method chain Dots (Dot preceded by PClose). */
 	/** Post-queue: re-evaluate methodChain entries that wrapped OnePerLine/AfterFirst
 	 *  because callParameter wrapping has since shortened line lengths.
-	 *  Strips method chain breaks, re-applies with current measurements. */
+	 *  Strips method chain breaks, re-applies with current measurements.
+	 */
 	function reEvaluateMethodChainAfterCallParam() {
 		for (place in wrappingQueue) {
 			if (place.origin != MethodChainWrapping) continue;
@@ -1721,7 +1676,6 @@ class MarkWrapping extends MarkWrappingBase {
 		});
 	}
 
-	/** Remove opAdd/opSub chain breaks between open and close tokens. */
 	/** Check if there are any line breaks before operator tokens (opAdd/opSub/opBool) in the given range. */
 	function hasOperatorBreaks(open:TokenTree, close:TokenTree):Bool {
 		var idx:Int = open.index + 1;
@@ -1775,10 +1729,7 @@ class MarkWrapping extends MarkWrappingBase {
 			var rule:WrapRule = determineWrapType2(config.wrapping.opAddSubChain, branchStart, items);
 			if (rule.type != NoWrap && rule.type != Keep) {
 				// Rules still require wrapping — restore breaks
-				for (s in savedBreaks) {
-					var info:Null<TokenInfo> = parsedCode.tokenList.tokens[s.idx];
-					if (info != null) info.whitespaceAfter = s.ws;
-				}
+				restoreBreaks(savedBreaks);
 				// Set additionalIndent on continuation tokens (after the break) so
 				// they are indented one level deeper than the branch start (? or :).
 				for (opTok in opAddTokens) {
@@ -1836,37 +1787,6 @@ class MarkWrapping extends MarkWrappingBase {
 					if (isNewLineBefore(info.token)) noLineEndBefore(info.token);
 					if (info.whitespaceAfter == Newline) noLineEndAfter(info.token);
 				default:
-			}
-		}
-	}
-
-	/** Collapse all breaks in a ternary branch if the branch fits on one line without them. */
-	function collapseTernaryBranchBreaks(branchStart:TokenTree, branchEnd:TokenTree) {
-		// Save existing breaks for potential restore
-		var savedBreaks:Array<Int> = [];
-		var idx:Int = branchStart.index;
-		while (idx < branchEnd.index) {
-			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
-			idx++;
-			if (info == null) continue;
-			if (info.whitespaceAfter == Newline) {
-				savedBreaks.push(info.token.index);
-				if (info.spacesAfter <= 0) {
-					info.whitespaceAfter = None;
-				} else {
-					info.whitespaceAfter = Space;
-				}
-			}
-			info.wrapAfter = false;
-		}
-		// If branch fits without breaks, done. Otherwise restore.
-		if (calcLineLength(branchStart) <= config.wrapping.maxLineLength) {
-			return;
-		}
-		for (savedIdx in savedBreaks) {
-			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[savedIdx];
-			if (info != null) {
-				info.whitespaceAfter = Newline;
 			}
 		}
 	}
@@ -1980,30 +1900,15 @@ class MarkWrapping extends MarkWrappingBase {
 				// calcLineLength was shortened by operator breaks (opAdd/opBool)
 				// within the ternary expression. Temporarily remove them to
 				// get the true single-line length.
-				var savedBreaks:Array<{idx:Int, ws:formatter.codedata.WhitespaceAfterType}> = [];
-				var idx:Int = wrap.itemStart.index;
-				while (idx <= dblDotEnd.index) {
-					var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
-					idx++;
-					if (info == null) continue;
-					switch (info.token.tok) {
-						case Binop(OpAdd), Binop(OpSub), Binop(OpBoolAnd), Binop(OpBoolOr):
-							var prevInfo:Null<TokenInfo> = getPreviousToken(info.token);
-							if (prevInfo != null && prevInfo.whitespaceAfter == Newline) {
-								savedBreaks.push({idx: prevInfo.token.index, ws: Newline});
-								prevInfo.whitespaceAfter = if (prevInfo.spacesAfter <= 0) None else Space;
-							}
-						default:
-					}
-				}
+				var savedBreaks = saveAndRemoveBreaks(wrap.itemStart.index, dblDotEnd.index, tok -> switch (tok) {
+					case Binop(OpAdd), Binop(OpSub), Binop(OpBoolAnd), Binop(OpBoolOr): true;
+					default: false;
+				});
 				if (calcLineLength(wrap.itemStart) > config.wrapping.maxLineLength) {
 					needsWrap = true;
 				}
 				// Restore operator breaks — they'll be re-evaluated per branch
-				for (s in savedBreaks) {
-					var info:Null<TokenInfo> = parsedCode.tokenList.tokens[s.idx];
-					if (info != null) info.whitespaceAfter = s.ws;
-				}
+				restoreBreaks(savedBreaks);
 			}
 			if (needsWrap) {
 				lineEndBefore(wrap.question);
@@ -3012,6 +2917,45 @@ class MarkWrapping extends MarkWrappingBase {
 				useTrailing: false,
 				overrideAdditionalIndent: null
 			}, "markMultiVarChaining");
+		}
+	}
+
+	// ── Save/Restore break helpers ──────────────────────────────────────
+
+	/** Remove line breaks in a token range and return saved state for restoration.
+	 *  Without matchOperator: removes ALL breaks (saves the token with the break).
+	 *  With matchOperator: removes breaks before matching operator tokens (saves predecessor). */
+	function saveAndRemoveBreaks(startIdx:Int, endIdx:Int,
+			?matchOperator:(tok:tokentree.TokenTreeDef) -> Bool):Array<{idx:Int, ws:formatter.codedata.WhitespaceAfterType}> {
+		var saved:Array<{idx:Int, ws:formatter.codedata.WhitespaceAfterType}> = [];
+		var idx:Int = startIdx;
+		while (idx <= endIdx) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			if (matchOperator != null) {
+				if (matchOperator(info.token.tok)) {
+					var prevInfo:Null<TokenInfo> = getPreviousToken(info.token);
+					if (prevInfo != null && prevInfo.whitespaceAfter == Newline) {
+						saved.push({idx: prevInfo.token.index, ws: Newline});
+						prevInfo.whitespaceAfter = if (prevInfo.spacesAfter <= 0) None else Space;
+					}
+				}
+			} else {
+				if (info.whitespaceAfter == Newline) {
+					saved.push({idx: info.token.index, ws: Newline});
+					info.whitespaceAfter = if (info.spacesAfter <= 0) None else Space;
+				}
+			}
+		}
+		return saved;
+	}
+
+	/** Restore previously saved line breaks. */
+	function restoreBreaks(saved:Array<{idx:Int, ws:formatter.codedata.WhitespaceAfterType}>) {
+		for (s in saved) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[s.idx];
+			if (info != null) info.whitespaceAfter = s.ws;
 		}
 	}
 }

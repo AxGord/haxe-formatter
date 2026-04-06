@@ -11,7 +11,7 @@ typedef SameLineConfig = {
 	@:default(Next) @:optional var ifBody:SameLinePolicy;
 
 	/**
-		when ifBody is "fitLine", also apply it to "if" statements that have an "else" branch.
+		when ifBody or elseBody is "fitLine", also apply it to "if"/"else" constructs that have an "else" branch.
 		false = don't compact if-with-else (better readability)
 		true = apply fitLine regardless of else
 	**/
@@ -64,7 +64,7 @@ typedef SameLineConfig = {
 
 	/**
 		same line policy for non block body of "for"
-		* same = place function and body on same line
+		* same = place for and body on same line
 		* next = place body on next line
 		* keep = keep same / next line from source
 		* fitLine = same line if total line length fits within maxLineLength, otherwise next line
@@ -84,7 +84,7 @@ typedef SameLineConfig = {
 
 	/**
 		same line policy for non block body of "do…while"
-		* same = place function and body on same line
+		* same = place do…while and body on same line
 		* next = place body on next line
 		* keep = keep same / next line from source
 		* fitLine = same line if total line length fits within maxLineLength, otherwise next line

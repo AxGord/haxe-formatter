@@ -725,9 +725,6 @@ class MarkSameLine extends MarkerBase {
 			}
 		}
 
-		// Phase 3: if full line exceeds only due to trailing comment AND body has
-		// wrappable content (call with params, nested keyword), keep Same — let wrapping handle it.
-		// For simple bodies (return, assignment), Next is better for readability.
 		// Phase 3: if full line exceeds only due to trailing comment AND body is
 		// a call/expression (not simple return/throw), keep Same — callParameter wrapping handles it.
 		if (lastToken != null && lastToken.tok.match(CommentLine(_)) && body != null) {

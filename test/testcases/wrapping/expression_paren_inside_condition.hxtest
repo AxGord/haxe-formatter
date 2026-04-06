@@ -1,0 +1,37 @@
+{
+	"wrapping": {
+		"maxLineLength": 80,
+		"expressionWrapping": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLineWithLeadingBreak"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if ((veryLongExpressionAlpha + veryLongExpressionBravo + veryLongExpressionCharlie + veryLongExpressionDelta) > threshold) {
+			doSomething();
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if ((
+			veryLongExpressionAlpha + veryLongExpressionBravo
+			+ veryLongExpressionCharlie + veryLongExpressionDelta
+		) > threshold) {
+			doSomething();
+		}
+	}
+}

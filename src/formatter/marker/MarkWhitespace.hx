@@ -28,7 +28,7 @@ class MarkWhitespace extends MarkerBase {
 				case Binop(OpSub):
 					if (TokenTreeCheckUtils.filterOpSub(token)) {
 						var policy:WhitespacePolicy = config.whitespace.binopPolicy.remove(After);
-						var prev:TokenInfo = getPreviousToken(token);
+						var prev:Null<TokenInfo> = getPreviousToken(token);
 						switch (prev.token.tok) {
 							case POpen, BkOpen:
 								policy = policy.remove(Before);
@@ -433,7 +433,7 @@ class MarkWhitespace extends MarkerBase {
 				policy = config.whitespace.caseColonPolicy;
 			case TypeHint:
 				policy = config.whitespace.typeHintColonPolicy;
-				var parent:TokenTree = token.parent;
+				var parent:Null<TokenTree> = token.parent;
 				if (parent != null) {
 					switch (parent.tok) {
 						case Kwd(KwdMacro):
@@ -544,7 +544,7 @@ class MarkWhitespace extends MarkerBase {
 	}
 
 	function markArrow(token:TokenTree) {
-		var arrowType:Null<ArrowType> = try TokenTreeCheckUtils.getArrowType(token) catch (e:Any) null;
+		var arrowType:Null<ArrowType> = TokenTreeCheckUtils.getArrowType(token);
 		if (arrowType == null) {
 			arrowType = ArrowFunction;
 		}

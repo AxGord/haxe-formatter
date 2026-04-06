@@ -1,0 +1,35 @@
+{
+	"wrapping": {
+		"maxLineLength": 100,
+		"ternaryExpression": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}], "type": "onePerLineAfterFirst", "location": "beforeLast"}
+			]
+		},
+		"opBoolChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}], "type": "onePerLineAfterFirst", "location": "afterLast"}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		final result:String = (veryLongConditionAlpha && veryLongConditionBravo) ? "a long result value string" : "another long fallback value string";
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		final result:String = (veryLongConditionAlpha && veryLongConditionBravo)
+			? "a long result value string"
+			: "another long fallback value string";
+	}
+}

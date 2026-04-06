@@ -2,7 +2,8 @@
 	"wrapping": {
 		"maxLineLength": 80,
 		"conditionWrapping": {
-			"defaultWrap": "fillLineWithLeadingBreak",
+			"defaultWrap": "onePerLineAfterFirst",
+			"defaultLocation": "beforeLast",
 			"rules": [
 				{
 					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
@@ -15,13 +16,12 @@
 
 ---
 
-
 class Main {
 	static function main() {
-		while (conditionAlpha && conditionBravo && conditionCharlie && conditionDelta && conditionEcho) {
+		if (conditionAlpha && conditionBravo && conditionCharlie && conditionDelta) {
 			doSomething();
 		}
-		while (shortCond) {
+		if (shortCond) {
 			doSomething();
 		}
 	}
@@ -31,13 +31,13 @@ class Main {
 
 class Main {
 	static function main() {
-		while (
-			conditionAlpha && conditionBravo && conditionCharlie
-			&& conditionDelta && conditionEcho
-		) {
+		if (conditionAlpha
+			&& conditionBravo
+			&& conditionCharlie
+			&& conditionDelta) {
 			doSomething();
 		}
-		while (shortCond) {
+		if (shortCond) {
 			doSomething();
 		}
 	}

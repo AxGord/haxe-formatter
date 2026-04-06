@@ -2,7 +2,7 @@
 	"wrapping": {
 		"maxLineLength": 80,
 		"conditionWrapping": {
-			"defaultWrap": "fillLineWithLeadingBreak",
+			"defaultWrap": "fillLine",
 			"rules": [
 				{
 					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
@@ -15,19 +15,12 @@
 
 ---
 
-
 class Main {
 	static function main() {
 		if (conditionAlpha && conditionBravo && conditionCharlie && conditionDelta && conditionEcho) {
 			doSomething();
 		}
 		if (shortCond) {
-			doSomething();
-		}
-		while (conditionAlpha && conditionBravo && conditionCharlie && conditionDelta && conditionEcho) {
-			doSomething();
-		}
-		while (shortCond) {
 			doSomething();
 		}
 	}
@@ -37,22 +30,11 @@ class Main {
 
 class Main {
 	static function main() {
-		if (
-			conditionAlpha && conditionBravo && conditionCharlie
-			&& conditionDelta && conditionEcho
-		) {
+		if (conditionAlpha && conditionBravo && conditionCharlie
+			&& conditionDelta && conditionEcho) {
 			doSomething();
 		}
 		if (shortCond) {
-			doSomething();
-		}
-		while (
-			conditionAlpha && conditionBravo && conditionCharlie
-			&& conditionDelta && conditionEcho
-		) {
-			doSomething();
-		}
-		while (shortCond) {
 			doSomething();
 		}
 	}

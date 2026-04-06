@@ -1,0 +1,45 @@
+{
+	"wrapping": {
+		"maxLineLength": 100,
+		"opBoolChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}], "type": "onePerLineAfterFirst", "location": "beforeLast"}
+			]
+		},
+		"opAddSubChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}], "type": "fillLine", "location": "beforeLast"}
+			]
+		},
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (conditionAlpha && computeValue(longParameterA, longParameterB, longParameterC) + additionalValue + extraOffset > upperLimit) {
+			doWork();
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (conditionAlpha
+			&& computeValue(longParameterA, longParameterB, longParameterC)
+				+ additionalValue + extraOffset > upperLimit) {
+			doWork();
+		}
+	}
+}

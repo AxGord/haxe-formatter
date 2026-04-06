@@ -438,7 +438,7 @@ typedef WrapConfig = {
 	var opAddSubChain:WrapRules;
 
 	/**
-		chain wrapping rules for OpAdd / OpSub
+		wrapping rules for multi-variable declarations
 	**/
 	@:default({
 		defaultWrap: NoWrap,
