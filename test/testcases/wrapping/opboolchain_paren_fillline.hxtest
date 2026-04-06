@@ -1,0 +1,50 @@
+{
+	"wrapping": {
+		"maxLineLength": 140,
+		"opBoolChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 3}, {"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "totalItemLength <= n", "value": 120}, {"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "beforeLast"
+				}
+			]
+		},
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		final isValid:Bool = _config.viewType == ViewModeType.FLAT_LIST || baseFolder == null || (baseFolder != null && resolvedItemData.fullPath.startsWith(baseFolder) && resolvedItemData.fullPath.length > baseFolder.length);
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		final isValid:Bool = _config.viewType == ViewModeType.FLAT_LIST || baseFolder == null || (
+			baseFolder != null && resolvedItemData.fullPath.startsWith(baseFolder) && resolvedItemData.fullPath.length > baseFolder.length
+		);
+	}
+}

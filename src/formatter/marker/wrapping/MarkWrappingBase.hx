@@ -412,7 +412,24 @@ class MarkWrappingBase extends MarkerBase {
 		var first:Bool = true;
 		for (item in items) {
 			var tokenLength:Int = item.firstLineLength;
-			if (!first && (lineLength + tokenLength >= maxLineLength)) {
+			// When a POpen item follows && or || and the parenthesized content
+			// wouldn't fit even on a new line, keep "|| (" on the current line
+			// and let expression wrapping break inside the parens later.
+			var effectiveLength:Int = tokenLength;
+			if (item.first.tok.match(POpen)) {
+				var prevInfo:Null<TokenInfo> = getPreviousToken(item.first);
+				if (prevInfo != null) {
+					switch (prevInfo.token.tok) {
+						case Binop(OpBoolAnd), Binop(OpBoolOr):
+							var wrappedLineLen:Int = indenter.calcAbsoluteIndent(indent + 1 + addIndent) + prevInfo.text.length + tokenLength;
+							if (wrappedLineLen >= maxLineLength) {
+								effectiveLength = calcTokenLength(item.first);
+							}
+						default:
+					}
+				}
+			}
+			if (!first && (lineLength + effectiveLength >= maxLineLength)) {
 				lineLength = indenter.calcAbsoluteIndent(indent + 1 + addIndent);
 				var prev:TokenInfo = getPreviousToken(item.first);
 				if (prev != null) {
@@ -435,10 +452,20 @@ class MarkWrappingBase extends MarkerBase {
 						noLineEndBefore(prev.token);
 					}
 				}
-				lineLength += tokenLength;
+				lineLength += effectiveLength;
 				first = false;
 				if (item.multiline) {
 					lineLength = indenter.calcAbsoluteIndent(indent + 1 + addIndent) + item.lastLineLength;
+				}
+				// POpen kept on current line in opBoolChain: break after ( and before )
+				// so inner chains see the correct line length when they run next.
+				if (effectiveLength != tokenLength) {
+					lineEndAfter(item.first);
+					var pClose:Null<TokenTree> = getCloseToken(item.first);
+					if (pClose != null) {
+						lineEndBefore(pClose);
+					}
+					lineLength = indenter.calcAbsoluteIndent(indent + 1 + addIndent);
 				}
 			}
 		}
