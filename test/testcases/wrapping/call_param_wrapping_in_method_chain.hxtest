@@ -51,10 +51,10 @@ class Main {
 				if (action != null) {
 					final a:Payload = {
 						addActions: action.addActions != null ? action.addActions.coach.filter(ShareUtil.notMixed)
-							.map(u -> {email: u.email, canEdit: u.access == EDIT })
+							.map(u -> {email: u.email, canEdit: u.access == EDIT})
 							.concat(
 								action.addActions.outside.filter(ShareUtil.notMixed)
-									.map(u -> {email: u.email, canEdit: u.access == EDIT })
+									.map(u -> {email: u.email, canEdit: u.access == EDIT})
 							) : null,
 						updateActions: null
 					};

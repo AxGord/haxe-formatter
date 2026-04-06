@@ -1,0 +1,46 @@
+{
+	"wrapping": {
+		"maxLineLength": 160,
+		"opBoolChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}, {"cond": "anyItemLength >= n", "value": 40}],
+					"location": "beforeLast",
+					"type": "onePerLineAfterFirst"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"location": "beforeLast",
+					"type": "fillLine"
+				},
+				{"conditions": [{"cond": "itemCount <= n", "value": 3}, {"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"},
+				{
+					"conditions": [{"cond": "totalItemLength <= n", "value": 120}, {"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{"conditions": [{"cond": "itemCount >= n", "value": 4}], "location": "beforeLast", "type": "onePerLineAfterFirst"}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (hasInnerArrowBreakMethod(token, pClose) && calcLineLengthMethod(token) <= config.wrapping.maxLineLength && !hasChainBreaksMethod(token, pClose)) {
+			continue;
+		}
+	}
+}
+
+---
+
+class Main {
+	static function main() {
+		if (hasInnerArrowBreakMethod(token, pClose) && calcLineLengthMethod(token) <= config.wrapping.maxLineLength && !hasChainBreaksMethod(token, pClose)) {
+			continue;
+		}
+	}
+}
