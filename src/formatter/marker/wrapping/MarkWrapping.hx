@@ -10,6 +10,8 @@ class MarkWrapping extends MarkWrappingBase {
 	var arrowWraps:Array<TokenTree> = [];
 	var sharpChainExtensions:Array<TokenTree> = [];
 	var multiParamOpAddTokens:Array<TokenTree> = [];
+	var assignmentWraps:Array<TokenTree> = [];
+	var extendsWraps:Array<{first:TokenTree, end:TokenTree}> = [];
 
 	public function run() {
 		var wrappableTokens:Array<TokenTree> = parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
@@ -75,6 +77,7 @@ class MarkWrapping extends MarkWrappingBase {
 		markOpBoolChaining();
 		markOpAddChaining();
 		markCasePatternChaining();
+		markAssignmentChaining();
 
 		applyWrappingQueue();
 		reEvaluateSingleArgCallParam();
@@ -107,10 +110,17 @@ class MarkWrapping extends MarkWrappingBase {
 		applyConditionWrapping();
 		applyExpressionWrapping();
 		collapseChainWraps();
+		applyAssignmentWrapping();
+		applyExtendsWrapping();
 		reEvaluateMethodChainAfterCallParam();
 		breakLongMethodChains();
+		preferParenWrapOverSingleArgChainBreak();
+		preferTernaryWrapOverBranchChainBreak();
+		preferFunctionSignatureWrapOverInnerParen();
+		breakLongOpBoolOperandAtCompare();
 		applyParenIndentWrapping();
 		wrapLongCallParamsInChains();
+		applyAssignmentTypeParamCollapse();
 	}
 
 	/**
@@ -351,7 +361,11 @@ class MarkWrapping extends MarkWrappingBase {
 		}
 	}
 
-	/** Check if there are Newline breaks before &&/|| between start and end indices. */
+	/** Whether the opBool chain between the indices is wrapped (operands on
+	 *  separate lines). A break may be a hard Newline or a soft `wrapAfter`
+	 *  (resolved at emit), and with per-operand trailing comments it sits on
+	 *  the `CommentLine` after the operator (`) || // cmt⏎`), not on the
+	 *  operator itself — all of these count. */
 	function hasChainBreaksBetween(startIdx:Int, endIdx:Int):Bool {
 		var idx:Int = startIdx;
 		while (idx <= endIdx) {
@@ -360,9 +374,12 @@ class MarkWrapping extends MarkWrappingBase {
 			if (info == null) continue;
 			switch (info.token.tok) {
 				case Binop(OpBoolAnd), Binop(OpBoolOr):
-					if (isNewLineBefore(info.token)) return true;
+					if (isNewLineBefore(info.token) || isNewLineAfter(info.token) || info.wrapAfter) return true;
 					var prev:Null<TokenInfo> = getPreviousToken(info.token);
-					if (prev != null && isNewLineAfter(prev.token)) return true;
+					if (prev != null && (prev.wrapAfter || isNewLineAfter(prev.token))) return true;
+					var next:Null<TokenInfo> = getNextToken(info.token);
+					if (next != null && (next.token.tok.match(CommentLine(_)) || next.token.tok.match(Comment(_)))
+						&& (next.wrapAfter || next.whitespaceAfter == Newline)) return true;
 				default:
 			}
 		}
@@ -928,6 +945,308 @@ class MarkWrapping extends MarkWrappingBase {
 			}
 		}
 		return length;
+	}
+
+	/**
+	 * Collect statement-level `var`/`final`/field initializer `=` tokens.
+	 * These are the only break point that keeps type parameters `<...>` and
+	 * call arguments intact when a declaration line exceeds maxLineLength.
+	 */
+	function markAssignmentChaining() {
+		parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
+			switch (token.tok) {
+				case Binop(OpAssign):
+					if (isDeclarationAssign(token)) {
+						assignmentWraps.push(token);
+					}
+				default:
+			}
+			return GoDeeper;
+		});
+	}
+
+	/** `=` that initializes a `var`/`final` declaration (not a typedef, not nested in a call/array/block). */
+	function isDeclarationAssign(token:TokenTree):Bool {
+		var parent:Null<TokenTree> = token.parent;
+		while (parent != null) {
+			switch (parent.tok) {
+				case Kwd(KwdVar), Kwd(KwdFinal):
+					return !TokenTreeCheckUtils.isInsideTypedef(token);
+				case POpen, BkOpen, Binop(OpArrow), Arrow:
+					return false;
+				case BrOpen:
+					return TokenTreeCheckUtils.getBrOpenType(parent) != Block;
+				default:
+			}
+			parent = parent.parent;
+		}
+		return false;
+	}
+
+	/** First token of the declaration's line: the `var`/`final` keyword, lifted through any leading modifiers/metadata. */
+	function findDeclarationRoot(token:TokenTree):TokenTree {
+		var root:Null<TokenTree> = token;
+		while (root != null) {
+			switch (root.tok) {
+				case Kwd(KwdVar), Kwd(KwdFinal):
+					break;
+				default:
+			}
+			root = root.parent;
+		}
+		if (root == null) {
+			return token;
+		}
+		while (root.parent != null) {
+			switch (root.parent.tok) {
+				case Kwd(KwdPublic), Kwd(KwdPrivate), Kwd(KwdStatic), Kwd(KwdOverride), Kwd(KwdInline), Kwd(KwdDynamic), Kwd(KwdMacro),
+					Kwd(KwdExtern), Kwd(KwdAbstract), Kwd(KwdOverload), At:
+					root = root.parent;
+				default:
+					return root;
+			}
+		}
+		return root;
+	}
+
+	/**
+	 * Post-queue: when a typed declaration `field/var:Type<...> = expr;` is too
+	 *  long and the formatter resolved it by splitting the left-side type
+	 *  parameters, break after `=` instead and collapse the `<...>` back onto
+	 *  one line — provided both halves then fit. Scope is intentionally narrow:
+	 *  it only acts when a type parameter list was actually broken, so plain
+	 *  call/array/object initializers keep their normal wrapping.
+	 */
+	function applyAssignmentWrapping() {
+		for (assign in assignmentWraps) {
+			var next:Null<TokenInfo> = getNextToken(assign);
+			if (next == null) {
+				continue;
+			}
+			var declRoot:TokenTree = findDeclarationRoot(assign);
+			var semicolon:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(declRoot);
+			if (semicolon == null) {
+				continue;
+			}
+			if (findLhsTypeParameter(declRoot, assign) == null) {
+				continue;
+			}
+			var maxLen:Int = config.wrapping.maxLineLength;
+			var indent:Int = calcLineLengthBefore(declRoot);
+			// First line the formatter would keep if it wraps the RHS at its outermost
+			// bracket instead of breaking at `=`. If that still exceeds maxLineLength,
+			// the only remaining split is inside the type parameters — break at `=`.
+			var rhsWrapOpen:Null<TokenTree> = findFirstWrapBracket(next.token, semicolon);
+			var keptFirstLine:Int = indent + (rhsWrapOpen == null ? calcSpanLength(declRoot, semicolon) : calcSpanLength(declRoot, rhsWrapOpen));
+			if (keptFirstLine <= maxLen) {
+				continue;
+			}
+			var lhsLen:Int = indent + calcSpanLength(declRoot, assign);
+			var rhsLen:Int = indent + config.indentation.tabWidth + calcSpanLength(next.token, semicolon);
+			if (lhsLen > maxLen || rhsLen > maxLen) {
+				continue;
+			}
+			lineEndAfter(assign);
+			collapseTypeParameterBreaks(declRoot, assign);
+			collapseTypeParameterBreaks(next.token, semicolon);
+		}
+	}
+
+	/**
+	 * Late post-pass (after all bracket/call/type-param wrapping is materialized):
+	 *  `applyAssignmentWrapping`'s keptFirstLine predictor assumes the RHS bracket
+	 *  wraps; when it does not (e.g. a single short call argument → callParameter
+	 *  noWrap), the formatter falls back to splitting the RHS type parameters
+	 *  `<...>`. By this point that split is real, so act on the symptom instead of
+	 *  predicting: if an RHS `<...>` is broken, `=` is not already the break, and
+	 *  both halves fit after a break at `=` with the type parameters collapsed —
+	 *  do that. Narrow gate (broken RHS type parameter) keeps array/object/
+	 *  multi-arg-call initializers untouched (their `<...>` is never broken).
+	 */
+	function applyAssignmentTypeParamCollapse() {
+		for (assign in assignmentWraps) {
+			var next:Null<TokenInfo> = getNextToken(assign);
+			if (next == null) {
+				continue;
+			}
+			if (isNewLineAfter(assign)) {
+				continue;
+			}
+			var declRoot:TokenTree = findDeclarationRoot(assign);
+			var semicolon:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(declRoot);
+			if (semicolon == null) {
+				continue;
+			}
+			// Same scope as applyAssignmentWrapping: only typed declarations
+			//  (`field:Type<...> = ...`); a bare `var x = new T<...>(...)` keeps
+			//  its RHS type-parameter split.
+			if (findLhsTypeParameter(declRoot, assign) == null) {
+				continue;
+			}
+			if (!hasWrappedTypeParameter(next.token, semicolon)) {
+				continue;
+			}
+			var maxLen:Int = config.wrapping.maxLineLength;
+			var indent:Int = calcLineLengthBefore(declRoot);
+			if (indent + calcSpanLength(declRoot, semicolon) <= maxLen) {
+				continue;
+			}
+			var lhsLen:Int = indent + calcSpanLength(declRoot, assign);
+			var rhsLen:Int = indent + config.indentation.tabWidth + calcSpanLength(next.token, semicolon);
+			if (lhsLen > maxLen || rhsLen > maxLen) {
+				continue;
+			}
+			lineEndAfter(assign);
+			collapseTypeParameterBreaks(declRoot, assign);
+			collapseTypeParameterBreaks(next.token, semicolon);
+		}
+	}
+
+	/**
+	 * Post-queue: when an `extends`/`implements` clause is too long and the
+	 *  formatter resolved it by splitting the base type's type parameters
+	 *  `<...>`, break before the `extends`/`implements` keyword instead and
+	 *  collapse the `<...>` back onto one line — provided both halves then fit.
+	 *  Scope is intentionally narrow (mirrors applyAssignmentWrapping): it only
+	 *  acts when a type parameter list was actually broken, so plain implements
+	 *  lists keep their normal onePerLine/fillLine wrapping.
+	 */
+	function applyExtendsWrapping() {
+		for (wrap in extendsWraps) {
+			var first:TokenTree = wrap.first;
+			var end:TokenTree = wrap.end;
+			if (!hasWrappedTypeParameter(first, end)) {
+				continue;
+			}
+			var lineStart:Null<TokenTree> = findLineStartToken(first);
+			if (lineStart == null) {
+				continue;
+			}
+			var prev:Null<TokenInfo> = getPreviousToken(first);
+			if (prev == null) {
+				continue;
+			}
+			var maxLen:Int = config.wrapping.maxLineLength;
+			var indent:Int = calcLineLengthBefore(lineStart);
+			// Line kept on the declaration line if we break before `extends`.
+			var headLen:Int = indent + calcSpanLength(lineStart, prev.token);
+			// Continuation line indented one level (a declaration continuation,
+			//  not an onePerLine implements list), type parameters collapsed
+			//  back onto one line.
+			var contLen:Int = indent + config.indentation.tabWidth + calcSpanLength(first, end);
+			if (headLen > maxLen || contLen > maxLen) {
+				continue;
+			}
+			lineEndBefore(first);
+			additionalIndent(first, 1);
+			collapseTypeParameterBreaks(first, end);
+		}
+	}
+
+	/**
+	 * Matching close `>` of a type-parameter `<` — the last token of the `<`
+	 *  subtree. `firstOf(Binop(OpGt))` would return a nested `>` (e.g. the inner
+	 *  `Null<Language>` close), truncating the scan range.
+	 */
+	function typeParamClose(lt:TokenTree):Null<TokenTree> {
+		var last:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(lt);
+		if (last != null && last.tok.match(Binop(OpGt))) {
+			return last;
+		}
+		return lt.access().firstOf(Binop(OpGt)).token;
+	}
+
+	/**
+	 * True when a type parameter `<...>` in the range has an internal break point
+	 *  — a soft `wrapAfter` (TypeParameterWrapping's split, resolved at emit when
+	 *  the line overflows) or an already-materialized hard `Newline`.
+	 */
+	function hasWrappedTypeParameter(start:TokenTree, end:TokenTree):Bool {
+		var idx:Int = start.index;
+		while (idx <= end.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) {
+				continue;
+			}
+			if (!info.token.tok.match(Binop(OpLt)) || !TokenTreeCheckUtils.isTypeParameter(info.token)) {
+				continue;
+			}
+			var close:Null<TokenTree> = typeParamClose(info.token);
+			if (close == null) {
+				continue;
+			}
+			var inner:Int = info.token.index;
+			while (inner < close.index) {
+				var innerInfo:Null<TokenInfo> = parsedCode.tokenList.tokens[inner];
+				inner++;
+				if (innerInfo != null && (innerInfo.wrapAfter || innerInfo.whitespaceAfter == Newline)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/** First `(`/`[`/`{` between start and end — the RHS's outermost wrappable bracket. */
+	function findFirstWrapBracket(start:TokenTree, end:TokenTree):Null<TokenTree> {
+		var idx:Int = start.index;
+		while (idx <= end.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) {
+				continue;
+			}
+			switch (info.token.tok) {
+				case POpen, BkOpen, BrOpen:
+					return info.token;
+				default:
+			}
+		}
+		return null;
+	}
+
+	/** First left-side (declaration type) type parameter `<...>` opening token, or null. */
+	function findLhsTypeParameter(declRoot:TokenTree, assign:TokenTree):Null<TokenTree> {
+		var idx:Int = declRoot.index;
+		while (idx < assign.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) {
+				continue;
+			}
+			if (info.token.tok.match(Binop(OpLt)) && TokenTreeCheckUtils.isTypeParameter(info.token)) {
+				return info.token;
+			}
+		}
+		return null;
+	}
+
+	/** Collapse line breaks inside every type parameter `<...>` group within the range, when the merged line fits. */
+	function collapseTypeParameterBreaks(start:TokenTree, end:TokenTree) {
+		var idx:Int = start.index;
+		while (idx <= end.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) {
+				continue;
+			}
+			if (!info.token.tok.match(Binop(OpLt)) || !TokenTreeCheckUtils.isTypeParameter(info.token)) {
+				continue;
+			}
+			var close:Null<TokenTree> = typeParamClose(info.token);
+			if (close == null) {
+				continue;
+			}
+			var inner:Int = info.token.index + 1;
+			while (inner <= close.index) {
+				var innerInfo:Null<TokenInfo> = parsedCode.tokenList.tokens[inner];
+				inner++;
+				if (innerInfo != null) {
+					tryCollapseBreakBefore(innerInfo.token);
+				}
+			}
+		}
 	}
 
 	function isComprehension(pOpen:TokenTree):Bool {
@@ -1636,6 +1955,20 @@ class MarkWrapping extends MarkWrappingBase {
 		}
 	}
 
+	/** Collapse every break (hard Newline and soft wrapAfter) strictly inside
+	 *  the token index range — including nested paren/bracket pairs that
+	 *  `noWrappingBetween` deliberately skips. */
+	function stripBreaksBetween(startIdx:Int, endIdx:Int) {
+		var idx:Int = startIdx;
+		while (idx < endIdx) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			info.wrapAfter = false;
+			if (info.whitespaceAfter == Newline) noLineEndAfter(info.token);
+		}
+	}
+
 	/**
 	 * Post-queue: for callParameter entries inside a method chain whose line
 	 *  exceeds maxLineLength, apply callParameter wrapping. Method chain wrapping
@@ -1673,6 +2006,228 @@ class MarkWrapping extends MarkWrappingBase {
 					if (calcLineLength(token) > config.wrapping.maxLineLength && isDotAfterPClose(token) && !isNewLineBefore(token)) {
 						lineEndBefore(token);
 					}
+				default:
+			}
+			return GoDeeper;
+		});
+	}
+
+	/** True when a MethodChainWrapping queue place anchored strictly inside the
+	 *  range resolved to an actual wrapping rule (onePerLine etc.). Such a chain
+	 *  is intentionally multi-line by config — collapsing it would defeat that.
+	 *  A place that resolved NoWrap/Keep means the only break came from the
+	 *  `breakLongMethodChains` overflow fallback, which is the case to fix. */
+	function hasWrappedMethodChainInside(startIdx:Int, endIdx:Int):Bool {
+		for (place in wrappingQueue) {
+			if (place.origin != MethodChainWrapping) continue;
+			if (place.start == null || place.items == null) continue;
+			var psi:Int = getPlaceStartIndex(place);
+			if (psi <= startIdx || psi >= endIdx) continue;
+			var rule:WrapRule = determineWrapType2(place.rules, place.start, place.items);
+			switch (rule.type) {
+				case NoWrap, Keep:
+				case _:
+					return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Post-queue: when a method chain is the sole argument of a call and
+	 *  `breakLongMethodChains` split it at a chained `.method(` (because
+	 *  callParameter NoWrap'd the single arg and the line overflowed), prefer
+	 *  wrapping the call's parentheses and keeping the chain on one line —
+	 *  provided the opening line and the collapsed-chain line then both fit.
+	 *  Mirrors the opSub single-arg fallback in `applyWrappingPlace`
+	 *  (OpAddChainWrapping case); the method chain has no queue-driven
+	 *  analogue, so this acts on the materialized break and falls back to it
+	 *  when paren wrapping would not fit. Gated by the actual chain break, so
+	 *  it is idempotent (no break left once collapsed and paren-wrapped).
+	 */
+	function preferParenWrapOverSingleArgChainBreak() {
+		var maxLen:Int = config.wrapping.maxLineLength;
+		for (place in wrappingQueue) {
+			if (place.origin != CallParameterWrapping) continue;
+			if (place.start == null || place.items == null || place.items.length != 1) continue;
+			// Skip calls that already wrapped their parens — reEvaluateSingleArgCallParam owns that case.
+			if (isNewLineAfter(place.start)) continue;
+			// Skip chained-call links (`).method(`): the enclosing method chain
+			//  governs their wrapping (wrapLongCallParamsInChains), not single-arg
+			//  paren wrapping. The bug case is a plain `Ident.method(` call.
+			var callPrev:Null<TokenInfo> = getPreviousToken(place.start);
+			if (callPrev != null && callPrev.token.isCIdent()) {
+				var callPrevPrev:Null<TokenInfo> = getPreviousToken(callPrev.token);
+				if (callPrevPrev != null && callPrevPrev.token.tok.match(Dot) && isDotAfterPClose(callPrevPrev.token)) continue;
+			}
+			var pClose:Null<TokenTree> = place.end;
+			if (pClose == null) pClose = getCloseToken(place.start);
+			if (pClose == null) continue;
+			var startIdx:Int = place.start.index;
+			var endIdx:Int = pClose.index;
+			if (!hasMethodChainBreaks(startIdx, endIdx)) continue;
+			// Only the breakLongMethodChains overflow fallback (no queue-driven
+			//  MethodChainWrapping place for the inner chain). When the chain has
+			//  its own queued wrapping decision (e.g. onePerLine), that is the
+			//  authority — collapsing it would defeat intentional chain wrapping.
+			if (hasWrappedMethodChainInside(startIdx, endIdx)) continue;
+			var lineStart:Null<TokenTree> = findLineStartToken(place.start);
+			if (lineStart == null) continue;
+			var firstContent:Null<TokenInfo> = getNextToken(place.start);
+			var lastContent:Null<TokenInfo> = getPreviousToken(pClose);
+			if (firstContent == null || lastContent == null) continue;
+			var indent:Int = calcLineLengthBefore(lineStart);
+			// Opening line kept up to and including the call's `(`.
+			var headLen:Int = indent + calcSpanLength(lineStart, place.start);
+			// Chain on its own line, one level deeper, collapsed back onto one line.
+			var contLen:Int = indent + config.indentation.tabWidth + calcSpanLength(firstContent.token, lastContent.token);
+			if (headLen > maxLen || contLen > maxLen) continue;
+			stripMethodChainBreaks(startIdx, endIdx);
+			lineEndAfter(place.start);
+			lineEndBefore(pClose);
+		}
+	}
+
+	/**
+	 * Post-`breakLongMethodChains`: sibling of `preferParenWrapOverSingleArgChainBreak`.
+	 *  When a detected ternary was NOT wrapped (its collapse check was fooled by a
+	 *  queue break shortening the first physical line) and a branch contains a
+	 *  method-chain break (overflow fallback), prefer wrapping the ternary and
+	 *  collapsing the chain — provided the condition line and both branch lines
+	 *  then fit. Acts on the materialized chain break; idempotent (gate is the
+	 *  break itself — once the ternary is wrapped and the chain collapsed, the
+	 *  branch fits and there is no chain break to re-trigger on).
+	 */
+	function preferTernaryWrapOverBranchChainBreak() {
+		var maxLen:Int = config.wrapping.maxLineLength;
+		for (wrap in ternaryWraps) {
+			// Already wrapped — nothing to recover.
+			if (isNewLineBefore(wrap.question)) continue;
+			var dblDotEnd:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(wrap.dblDot);
+			if (dblDotEnd == null) continue;
+			if (!hasMethodChainBreaks(wrap.question.index, dblDotEnd.index)) continue;
+			var lineStart:Null<TokenTree> = findLineStartToken(wrap.itemStart);
+			if (lineStart == null) continue;
+			var condEnd:Null<TokenInfo> = getPreviousToken(wrap.question);
+			var trueEnd:Null<TokenInfo> = getPreviousToken(wrap.dblDot);
+			if (condEnd == null || trueEnd == null) continue;
+			var indent:Int = calcLineLengthBefore(lineStart);
+			// `?`/`:` continuation sits one level deeper than the statement.
+			var branchIndent:Int = indent + config.indentation.tabWidth;
+			var condLen:Int = indent + calcSpanLength(lineStart, condEnd.token);
+			var trueLen:Int = branchIndent + calcSpanLength(wrap.question, trueEnd.token);
+			var falseLen:Int = branchIndent + calcSpanLength(wrap.dblDot, dblDotEnd);
+			if (condLen > maxLen || trueLen > maxLen || falseLen > maxLen) continue;
+			stripMethodChainBreaks(wrap.question.index, dblDotEnd.index);
+			lineEndBefore(wrap.question);
+			lineEndBefore(wrap.dblDot);
+		}
+	}
+
+	/** A nested `FunctionSignatureWrapping` place (a Haxe-4 function-TYPE
+	 *  parameter list `(a:T, b:U)->V`, classified `Parameter` by
+	 *  `getPOpenType` because of the trailing `->`) that materialized a
+	 *  leading break inside the given range — the symptom of the enclosing
+	 *  signature being left unwrapped. Gated on the fact (`isNewLineAfter`
+	 *  the inner `(`), not on a re-predicted rule. */
+	function hasWrappedInnerSignature(startIdx:Int, endIdx:Int):Bool {
+		for (place in wrappingQueue) {
+			if (place.origin != FunctionSignatureWrapping) continue;
+			if (place.start == null) continue;
+			var psi:Int = place.start.index;
+			if (psi <= startIdx || psi >= endIdx) continue;
+			if (isNewLineAfter(place.start)) return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Post-queue sibling of `preferParenWrapOverSingleArgChainBreak`.
+	 *  A Haxe-4 function-TYPE parameter list (`(a:T, b:U)->V`) is classified
+	 *  as `Parameter` by `getPOpenType` (trailing `->`), so it is queued as
+	 *  its own `FunctionSignatureWrapping` place. When the enclosing real
+	 *  signature has a single overflowing parameter, the configured
+	 *  `itemCount <= 1 -> noWrap` rule keeps it on one line; the still too
+	 *  long line is then absorbed by wrapping the inner func-type paren,
+	 *  splitting the type instead of the parameter. Prefer breaking the lone
+	 *  parameter onto its own line (fillLineWithLeadingBreak) and collapsing
+	 *  the inner func-type paren — provided the head, parameter and closing
+	 *  lines then fit. Acts on the materialized inner break; idempotent (the
+	 *  gate is the still-collapsed single-param signature whose one-line span
+	 *  exceeds maxLineLength, measured break-agnostically via calcSpanLength,
+	 *  plus a still-wrapped inner func-type paren — both false once the lone
+	 *  param sits on its own line and the inner paren has collapsed).
+	 */
+	function preferFunctionSignatureWrapOverInnerParen() {
+		var maxLen:Int = config.wrapping.maxLineLength;
+		for (place in wrappingQueue) {
+			if (place.origin != FunctionSignatureWrapping) continue;
+			if (place.start == null || place.items == null || place.items.length != 1) continue;
+			// Already broke the lone param onto its own line — nothing to do.
+			if (isNewLineAfter(place.start)) continue;
+			var pClose:Null<TokenTree> = place.end;
+			if (pClose == null) pClose = getCloseToken(place.start);
+			if (pClose == null) continue;
+			// Recover only from the materialized symptom: a nested func-type
+			//  paren that actually wrapped. Without it the lone-param noWrap
+			//  decision stands (there is no inner split to undo).
+			if (!hasWrappedInnerSignature(place.start.index, pClose.index)) continue;
+			var lineStart:Null<TokenTree> = findLineStartToken(place.start);
+			if (lineStart == null) continue;
+			// End of the signature line: the function body `{` after `)`.
+			var bodyOpen:Null<TokenTree> = pClose;
+			var walk:Null<TokenInfo> = getNextToken(pClose);
+			while (walk != null) {
+				switch (walk.token.tok) {
+					case BrOpen:
+						bodyOpen = walk.token;
+					case Semicolon:
+						// Bodyless decl (interface/abstract/extern) — line ends at `;`.
+						bodyOpen = walk.token;
+					default:
+						walk = getNextToken(walk.token);
+						continue;
+				}
+				break;
+			}
+			var item:WrappableItem = place.items[0];
+			var indent:Int = calcLineLengthBefore(lineStart);
+			// Whole signature collapsed onto one line — the decision gate.
+			var fullLen:Int = indent + calcSpanLength(lineStart, bodyOpen);
+			if (fullLen <= maxLen) continue;
+			// Opening line kept up to and including the signature `(`.
+			var headLen:Int = indent + calcSpanLength(lineStart, place.start);
+			// Lone parameter on its own line, one level deeper, collapsed.
+			var paramLen:Int = indent + config.indentation.tabWidth + calcSpanLength(item.first, item.last);
+			// Closing `)` + return type + `{` back at the signature indent.
+			var closeLen:Int = indent + calcSpanLength(pClose, bodyOpen);
+			if (headLen > maxLen || paramLen > maxLen || closeLen > maxLen) continue;
+			stripBreaksBetween(place.start.index, pClose.index);
+			wrapFillLineWithLeading2AfterLast(place.start, pClose, place.items, maxLen, 0);
+		}
+	}
+
+	/** After conditionWrapping/opBoolChain, an individual `&&`/`||` operand can
+	 *  still exceed maxLineLength when the operand itself contains a long
+	 *  equality comparison (e.g. `a?.b == 'very long string literal'`).
+	 *  opBoolChain only breaks between operands, never inside one — so split
+	 *  such an operand before its top-level `==`/`!=`. The token tree already
+	 *  nests the comparison one level under the operand, so the indenter
+	 *  produces the continuation indent without an additionalIndent marker. */
+	function breakLongOpBoolOperandAtCompare() {
+		parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
+			switch (token.tok) {
+				case Binop(OpEq), Binop(OpNotEq):
+					if (isNewLineBefore(token)) {
+						return GoDeeper;
+					}
+					if (!isInsideConditionWrap(token)) {
+						return GoDeeper;
+					}
+					if (calcLineLength(token) <= config.wrapping.maxLineLength) {
+						return GoDeeper;
+					}
+					lineEndBefore(token);
 				default:
 			}
 			return GoDeeper;
@@ -1889,29 +2444,55 @@ class MarkWrapping extends MarkWrappingBase {
 			noLineEndBefore(wrap.question);
 			noLineEndBefore(wrap.dblDot);
 			var needsWrap:Bool = false;
-			if (calcLineLength(wrap.itemStart) > config.wrapping.maxLineLength) {
-				needsWrap = true;
-			} else if (dblDotEnd != null && hasCallParamBreaksBetweenTokens(wrap.itemStart, dblDotEnd)) {
-				// calcLineLength shortened by callParameter breaks — check full span
-				var indent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(wrap.itemStart));
-				var span:Int = indent + calcLineLengthBefore(wrap.itemStart) + calcSpanLength(wrap.itemStart, dblDotEnd);
-				if (span > config.wrapping.maxLineLength) {
+			var exprWrapParen:Null<TokenTree> = findEnclosingExpressionWrap(wrap.itemStart);
+			// Only when the paren is preceded by a binary operator does
+			// applyExpressionWrapping keep its leading break (see prevIsBinop
+			// there) — that isolates the ternary on its own line. When it is
+			// preceded by `return`/`=`/etc. the first chunk stays on the paren's
+			// line, so the ternary is not isolated and the standard line-length
+			// path applies.
+			var exprWrapIsolatesTernary:Bool = false;
+			if (exprWrapParen != null) {
+				var beforeParen:Null<TokenInfo> = getPreviousToken(exprWrapParen);
+				exprWrapIsolatesTernary = beforeParen != null && beforeParen.token.tok.match(Binop(_));
+			}
+			if (exprWrapIsolatesTernary && dblDotEnd != null) {
+				// The enclosing expression paren is queued to wrap (decision
+				// already recorded in expressionWraps — applyExpressionWrapping
+				// runs after this and will move `… + (` to the previous line
+				// and `)` to the next). calcLineLength / calcLineLengthBefore
+				// still see the un-wrapped full line and over-count that prefix
+				// and suffix. Measure the ternary at its post-wrap indent
+				// instead: paren content sits one level deeper than the paren.
+				var effIndent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(wrap.itemStart)) + indenter.calcAbsoluteIndent(1);
+				if (effIndent + calcSpanLength(wrap.itemStart, dblDotEnd) > config.wrapping.maxLineLength) {
 					needsWrap = true;
 				}
-			}
-			if (!needsWrap && dblDotEnd != null && hasOperatorBreaks(wrap.itemStart, dblDotEnd)) {
-				// calcLineLength was shortened by operator breaks (opAdd/opBool)
-				// within the ternary expression. Temporarily remove them to
-				// get the true single-line length.
-				var savedBreaks = saveAndRemoveBreaks(wrap.itemStart.index, dblDotEnd.index, tok -> switch (tok) {
-					case Binop(OpAdd), Binop(OpSub), Binop(OpBoolAnd), Binop(OpBoolOr): true;
-					default: false;
-				});
+			} else {
 				if (calcLineLength(wrap.itemStart) > config.wrapping.maxLineLength) {
 					needsWrap = true;
+				} else if (dblDotEnd != null && hasCallParamBreaksBetweenTokens(wrap.itemStart, dblDotEnd)) {
+					// calcLineLength shortened by callParameter breaks — check full span
+					var indent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(wrap.itemStart));
+					var span:Int = indent + calcLineLengthBefore(wrap.itemStart) + calcSpanLength(wrap.itemStart, dblDotEnd);
+					if (span > config.wrapping.maxLineLength) {
+						needsWrap = true;
+					}
 				}
-				// Restore operator breaks — they'll be re-evaluated per branch
-				restoreBreaks(savedBreaks);
+				if (!needsWrap && dblDotEnd != null && hasOperatorBreaks(wrap.itemStart, dblDotEnd)) {
+					// calcLineLength was shortened by operator breaks (opAdd/opBool)
+					// within the ternary expression. Temporarily remove them to
+					// get the true single-line length.
+					var savedBreaks = saveAndRemoveBreaks(wrap.itemStart.index, dblDotEnd.index, tok -> switch (tok) {
+						case Binop(OpAdd), Binop(OpSub), Binop(OpBoolAnd), Binop(OpBoolOr): true;
+						default: false;
+					});
+					if (calcLineLength(wrap.itemStart) > config.wrapping.maxLineLength) {
+						needsWrap = true;
+					}
+					// Restore operator breaks — they'll be re-evaluated per branch
+					restoreBreaks(savedBreaks);
+				}
 			}
 			if (needsWrap) {
 				lineEndBefore(wrap.question);
@@ -2098,6 +2679,22 @@ class MarkWrapping extends MarkWrappingBase {
 	 * (total character count exceeds maxLineLength). This indicates the expression
 	 * will be multiline regardless of the opBool wrapping decision.
 	 */
+	/**
+	 * Innermost enclosing POpen that is queued for expression wrapping
+	 * (present in expressionWraps), or null. Used by the ternary collapse
+	 * check to measure the ternary at its post-expression-wrap indent.
+	 */
+	function findEnclosingExpressionWrap(token:TokenTree):Null<TokenTree> {
+		var parent:TokenTree = token.parent;
+		while (parent != null && parent.tok != Root) {
+			if (parent.tok.match(POpen) && expressionWraps.indexOf(parent) >= 0) {
+				return parent;
+			}
+			parent = parent.parent;
+		}
+		return null;
+	}
+
 	function isInsideMultilineParen(token:TokenTree):Bool {
 		var parent:TokenTree = token.parent;
 		while (parent != null && parent.tok != Root) {
@@ -2873,6 +3470,7 @@ class MarkWrapping extends MarkWrappingBase {
 				chainOpen = prev.token;
 			}
 			var chainEnd:TokenTree = items[items.length - 1].last;
+			extendsWraps.push({first: items[0].first, end: chainEnd});
 			queueWrapping({
 				origin: ImplementsWrapping,
 				start: chainOpen,

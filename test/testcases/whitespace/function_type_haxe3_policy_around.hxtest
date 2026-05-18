@@ -1,0 +1,32 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"whitespace": {
+		"functionTypeHaxe3Policy": "around",
+		"functionTypeHaxe4Policy": "around"
+	}
+}
+
+---
+
+class T {
+	var a:Null<Array<Null<FINALRESULT>->Void>>;
+	var b:Null<Array<() -> Void>>;
+	var c:Null<FINALRESULT>->Void;
+	var d:Int->Void;
+	var e:(String)->Bool;
+}
+
+---
+
+class T {
+	var a:Null<Array<Null<FINALRESULT> -> Void>>;
+	var b:Null<Array<() -> Void>>;
+	var c:Null<FINALRESULT> -> Void;
+	var d:Int -> Void;
+	var e:(String) -> Bool;
+}

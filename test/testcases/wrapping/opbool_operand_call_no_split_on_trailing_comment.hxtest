@@ -1,0 +1,62 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"opBoolChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 3}, {"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "beforeLast"
+				}
+			]
+		},
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function verifyOptions():Bool {
+		return NodeUtilA.verifyBoundsCheck(currentDateTime, dataContext.NodeData.AlphaFlagData) || // tier zero
+			NodeUtilA.verifyRangeArg(currentDateTime, dataContext.NodeData.AlphaFlagData) || // tier one
+			NodeUtilA.verifyRangeArg(currentDateTime, dataContext.NodeData.BravoOptionField) || // tier two0 with extra feature enabled000
+			NodeUtilA.verifyRangeArg(currentDateTime, dataContext.NodeData.DeltaFlagOption); // tier three with another feature toggled000000
+	}
+}
+
+---
+
+class Main {
+	function verifyOptions():Bool {
+		return NodeUtilA.verifyBoundsCheck(currentDateTime, dataContext.NodeData.AlphaFlagData) || // tier zero
+			NodeUtilA.verifyRangeArg(currentDateTime, dataContext.NodeData.AlphaFlagData) || // tier one
+			NodeUtilA.verifyRangeArg(currentDateTime, dataContext.NodeData.BravoOptionField) || // tier two0 with extra feature enabled000
+			NodeUtilA.verifyRangeArg(
+				currentDateTime, dataContext.NodeData.DeltaFlagOption
+			); // tier three with another feature toggled000000
+	}
+}

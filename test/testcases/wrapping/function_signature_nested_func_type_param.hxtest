@@ -1,0 +1,69 @@
+{
+	"indentation": {
+		"character": "tab",
+		"tabWidth": 4
+	},
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"functionSignature": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "totalItemLength <= n", "value": 100}, {"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	},
+	"whitespace": {
+		"functionTypeHaxe3Policy": "none",
+		"functionTypeHaxe4Policy": "none",
+		"arrowFunctionsPolicy": "around"
+	}
+}
+
+---
+
+class C<W, W2> {
+	public function processNodeItems(?loadContextRf:(cb:(dataItemX0:GenericDataHolderXX<ContextBundleNodeXYZA>, cbFinish:()->Void)->Void)->Void):GenericNodeService<W, W2> {}
+}
+
+---
+
+class C<W, W2> {
+	public function processNodeItems(
+		?loadContextRf:(cb:(dataItemX0:GenericDataHolderXX<ContextBundleNodeXYZA>, cbFinish:()->Void)->Void)->Void
+	):GenericNodeService<W, W2> {}
+}

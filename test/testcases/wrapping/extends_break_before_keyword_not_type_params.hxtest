@@ -1,0 +1,22 @@
+{
+	"wrapping": {
+		"maxLineLength": 140
+	},
+	"whitespace": {
+		"bracesConfig": {
+			"anonTypeBraces": {
+				"openingPolicy": "after",
+				"closingPolicy": "before"
+			}
+		}
+	}
+}
+
+---
+
+@:nullSafety final class GenericContainerXYZ extends FetchHelper<GenericContainerEntityXYZ, pkg.inner.bundles.GenericContainerXYZ, { enableExtraOptionXY:Bool }> {}
+
+---
+
+@:nullSafety final class GenericContainerXYZ
+	extends FetchHelper<GenericContainerEntityXYZ, pkg.inner.bundles.GenericContainerXYZ, { enableExtraOptionXY:Bool }> {}

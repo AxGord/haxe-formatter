@@ -1,0 +1,22 @@
+{
+	"wrapping": {
+		"maxLineLength": 140,
+		"typeParameter": {
+			"defaultWrap": "noWrap",
+			"rules": []
+		}
+	}
+}
+
+---
+
+class Main {
+	public final configureItemList:Handler<ConfiguredItemValue, ConfiguredItemValueResult00, ConfiguredItemValueInput00> = new Handler<ConfiguredItemValue, ConfiguredItemValueResult00, ConfiguredItemValueInput00>('$BASE_NS00/ConfigureItemValue');
+}
+
+---
+
+class Main {
+	public final configureItemList:Handler<ConfiguredItemValue, ConfiguredItemValueResult00, ConfiguredItemValueInput00> =
+		new Handler<ConfiguredItemValue, ConfiguredItemValueResult00, ConfiguredItemValueInput00>('$BASE_NS00/ConfigureItemValue');
+}

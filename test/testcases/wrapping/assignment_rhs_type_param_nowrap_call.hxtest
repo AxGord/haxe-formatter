@@ -1,0 +1,31 @@
+{
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Node {
+	public final buildRequestList:Endpoint2A<ResultHolderA, FailureValueX> = new Endpoint2A<ResultHolderA, FailureValueX>('task/RunGenericAction');
+}
+
+---
+
+class Node {
+	public final buildRequestList:Endpoint2A<ResultHolderA, FailureValueX> =
+		new Endpoint2A<ResultHolderA, FailureValueX>('task/RunGenericAction');
+}

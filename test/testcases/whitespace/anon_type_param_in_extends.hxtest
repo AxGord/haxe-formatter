@@ -1,0 +1,22 @@
+{
+	"whitespace": {
+		"bracesConfig": {
+			"anonTypeBraces": {
+				"openingPolicy": "after",
+				"closingPolicy": "before"
+			}
+		}
+	}
+}
+
+---
+
+package;
+
+class C extends P<{f:Int}> {}
+
+---
+
+package;
+
+class C extends P<{ f:Int }> {}

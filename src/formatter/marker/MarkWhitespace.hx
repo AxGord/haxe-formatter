@@ -229,6 +229,10 @@ class MarkWhitespace extends MarkerBase {
 						}
 					case Binop(OpLt):
 						if (token.tok.match(BrOpen)) {
+							// anon type as type parameter (`P<{f:Int}>`): the `<`/`{` gap is
+							// owned by typeParamOpenPolicy on `<`, so don't touch prev here;
+							// only apply the brace's after-`{` side (e.g. space after `{`)
+							whitespace(token, policy.has(After) ? After : NoneAfter);
 							return;
 						}
 					case DblDot:

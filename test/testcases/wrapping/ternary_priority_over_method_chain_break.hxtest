@@ -1,0 +1,103 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"indentation": {
+		"character": "tab",
+		"tabWidth": 4
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [
+						{"cond": "itemCount <= n", "value": 1},
+						{"cond": "totalItemLength <= n", "value": 100}
+					],
+					"type": "noWrap"
+				}
+			]
+		},
+		"opBoolChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [
+						{"cond": "itemCount <= n", "value": 3},
+						{"cond": "exceedsMaxLineLength", "value": 0}
+					],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "beforeLast"
+				}
+			]
+		},
+		"ternaryExpression": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "onePerLineAfterFirst",
+					"location": "beforeLast"
+				}
+			]
+		},
+		"methodChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "lineLength >= n", "value": 160}],
+					"type": "onePerLineAfterFirst"
+				},
+				{
+					"conditions": [
+						{"cond": "itemCount <= n", "value": 3},
+						{"cond": "exceedsMaxLineLength", "value": 0}
+					],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [
+						{"cond": "totalItemLength <= n", "value": 80},
+						{"cond": "exceedsMaxLineLength", "value": 0}
+					],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "onePerLineAfterFirst"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	public static function hasGenericAccessFlag(dataContext:Null<DataContext>):Bool {
+		return dataContext != null && dataContext.PresentTimeData != null ? dataContext.PresentTimeData.parseTokenXX().getTime().verifyRangeArg(dataContext.NodeData.DeltaFlagOption) : false;
+	}
+}
+
+---
+
+class Main {
+	public static function hasGenericAccessFlag(dataContext:Null<DataContext>):Bool {
+		return dataContext != null && dataContext.PresentTimeData != null
+			? dataContext.PresentTimeData.parseTokenXX().getTime().verifyRangeArg(dataContext.NodeData.DeltaFlagOption)
+			: false;
+	}
+}
