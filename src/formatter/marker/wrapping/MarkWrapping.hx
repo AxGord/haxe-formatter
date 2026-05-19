@@ -2511,6 +2511,19 @@ class MarkWrapping extends MarkWrappingBase {
 				if (dblDotEnd != null) {
 					reAddOpAddBreaksInTernaryBranch(wrap.dblDot, dblDotEnd);
 				}
+				// The condition's &&/|| breaks were placed by the queue /
+				// wrapBoolOpsIfMultiline on the un-wrapped full line. Now the
+				// condition sits on its own line (the ? / : are broken) — those
+				// breaks may be unnecessary. Collapse them if the condition fits,
+				// restore otherwise. The !needsWrap branch below does the same
+				// unconditionally because the whole ternary fits there.
+				var savedCondBreaks = saveAndRemoveBreaks(wrap.itemStart.index, wrap.question.index, tok -> switch (tok) {
+					case Binop(OpBoolAnd), Binop(OpBoolOr): true;
+					default: false;
+				});
+				if (savedCondBreaks.length > 0 && calcLineLength(wrap.itemStart) > config.wrapping.maxLineLength) {
+					restoreBreaks(savedCondBreaks);
+				}
 			} else if (dblDotEnd != null && !hasLineBreaksBetween(wrap.question.index, dblDotEnd.index - 1)) {
 				// Ternary fits on one line AND branches have no inner breaks —
 				// undo wrapBoolOpsIfMultiline's && breaks in the condition.
@@ -2525,9 +2538,16 @@ class MarkWrapping extends MarkWrappingBase {
 		}
 		// Second pass: apply additionalIndent for nested ternaries.
 		// A ternary is nested if its ? token falls inside another wrapped ternary's range.
+		// The Indenter already staircases the continuation indent in some structural
+		// configurations (e.g. right-associative nesting where the inner ternary's ? is
+		// deeper in the token tree) but keeps it flat in others. Adding `depth` blindly
+		// double-counts the first case. Instead target an absolute indent of
+		// rootBase + depth (rootBase = the outermost containing ternary's base indent)
+		// and add only the delta the Indenter has not already supplied.
 		for (wrap in ternaryWraps) {
 			if (!isNewLineBefore(wrap.question)) continue; // not wrapped
 			var depth:Int = 0;
+			var rootWrap = wrap;
 			for (outer in ternaryWraps) {
 				if (outer == wrap) continue;
 				if (!isNewLineBefore(outer.question)) continue; // outer not wrapped
@@ -2535,12 +2555,16 @@ class MarkWrapping extends MarkWrappingBase {
 					var outerEnd:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(outer.dblDot);
 					if (outerEnd != null && wrap.question.index < outerEnd.index) {
 						depth++;
+						if (outer.question.index < rootWrap.question.index) rootWrap = outer;
 					}
 				}
 			}
 			if (depth > 0) {
-				additionalIndent(wrap.question, depth);
-				additionalIndent(wrap.dblDot, depth);
+				var add:Int = (indenter.calcIndent(rootWrap.question) + depth) - indenter.calcIndent(wrap.question);
+				if (add > 0) {
+					additionalIndent(wrap.question, add);
+					additionalIndent(wrap.dblDot, add);
+				}
 			}
 		}
 	}

@@ -1,0 +1,95 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"indentation": {
+		"character": "tab",
+		"tabWidth": 4
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [
+						{"cond": "itemCount <= n", "value": 1},
+						{"cond": "totalItemLength <= n", "value": 100}
+					],
+					"type": "noWrap"
+				}
+			]
+		},
+		"opBoolChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [
+						{"cond": "itemCount <= n", "value": 3},
+						{"cond": "exceedsMaxLineLength", "value": 0}
+					],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [
+						{"cond": "totalItemLength <= n", "value": 120},
+						{"cond": "exceedsMaxLineLength", "value": 0}
+					],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "beforeLast"
+				}
+			]
+		},
+		"ternaryExpression": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "onePerLineAfterFirst",
+					"location": "beforeLast"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test():Void {
+		if (condArg) {
+			if (!okState) {
+				final result:String = flagA ? Cfg.pending ? t('placeholder text segment placeholder text segment placeholder text') : Cfg.role == MODE_FIRSTOPTION || Cfg.role == MODE_OTHEROPTION ? t('placeholder text segment placeholder text segment') : t('placeholder text segment placeholder text segment placeholder text s') : t('placeholder text segment placeholder text segme');
+			}
+		}
+	}
+}
+
+---
+
+class Main {
+	function test():Void {
+		if (condArg) {
+			if (!okState) {
+				final result:String = flagA
+					? Cfg.pending
+						? t('placeholder text segment placeholder text segment placeholder text')
+						: Cfg.role == MODE_FIRSTOPTION || Cfg.role == MODE_OTHEROPTION
+							? t('placeholder text segment placeholder text segment')
+							: t('placeholder text segment placeholder text segment placeholder text s')
+					: t('placeholder text segment placeholder text segme');
+			}
+		}
+	}
+}
