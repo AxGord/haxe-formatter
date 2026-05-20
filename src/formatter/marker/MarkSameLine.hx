@@ -3,6 +3,8 @@ package formatter.marker;
 import formatter.config.SameLineConfig;
 
 class MarkSameLine extends MarkerBase {
+	final _forceFitLineNext:Array<TokenTree> = [];
+
 	public function run() {
 		markDollarSameLine();
 
@@ -522,12 +524,100 @@ class MarkSameLine extends MarkerBase {
 							resolved = Same;
 						}
 					}
+					// resolveFitLine Phase 1 measures only up to the body's `{`. For comprehension
+					// we pass includeBrOpen=true (below) which asks markBlockBody to collapse the
+					// whole block onto the for line — but block contents may exceed maxLineLength
+					// even though the first line fits. Verify the full block fits before committing.
+					if (resolved == Same && config.sameLine.forBody == FitLine) {
+						var body:Null<TokenTree> = getBodyAfterCondition(token);
+						if (body != null && body.tok.match(BrOpen) && TokenTreeCheckUtils.getBrOpenType(body) == Block) {
+							var blockClose:Null<TokenTree> = getCloseToken(body);
+							if (blockClose != null) {
+								var indent:Int = indenter.calcIndent(token);
+								var indentLen:Int = indenter.calcAbsoluteIndent(indent);
+								var fullLen:Int = calcLengthBetween(token, blockClose) + calcTokenLength(blockClose);
+								if ((indentLen + fullLen) > config.wrapping.maxLineLength) {
+									resolved = Next;
+								}
+							}
+						}
+					}
 					// In comprehension, for body is an implicit BrOpen(Block).
 					// markBodyAfterPOpen with includeBrOpen=false skips it.
 					// Pass true so markBlockBody can collapse the block onto one line.
 					markBodyAfterPOpen(token, resolved, resolved == Same);
 				}
-			case Next | FitLine:
+			case FitLine:
+				// FitLine: glue `[ for` and `]` to adjacent content (like Same+origSame), but
+				// the body's collapse depends on whether the FULL `[for ... ]` fits one line.
+				// If it does → collapse everything onto one line.
+				// If not → keep `[ for` glued; `]` glued+symmetric only when body is a Block
+				// (`{ ... } ]`); for non-block bodies (bare-if comprehension) `]` breaks to
+				// its own line because the staircase has no closing brace to pair with.
+				var fullFits:Bool = false;
+				if (bkClose != null) {
+					var bkIndent:Int = indenter.calcIndent(bkOpen);
+					var bkIndentLen:Int = indenter.calcAbsoluteIndent(bkIndent);
+					var fullLen:Int = calcLengthBetween(bkOpen, bkClose) + calcTokenLength(bkClose);
+					fullFits = (bkIndentLen + fullLen) <= config.wrapping.maxLineLength;
+				}
+				var bodyIsBlock:Bool = false;
+				{
+					var body:Null<TokenTree> = getBodyAfterCondition(token);
+					bodyIsBlock = body != null && body.tok.match(BrOpen) && TokenTreeCheckUtils.getBrOpenType(body) == Block;
+				}
+				if (fullFits) {
+					markBodyAfterPOpen(token, Same, true);
+				} else {
+					var resolved:SameLinePolicy = resolveFitLine(token, config.sameLine.forBody);
+					if (resolved == Next && config.sameLine.forBody == FitLine) {
+						var body:Null<TokenTree> = getBodyAfterCondition(token);
+						if (body != null && body.tok.match(BrOpen) && TokenTreeCheckUtils.getBrOpenType(body) == ObjectDecl) {
+							resolved = Same;
+						}
+					}
+					// Same full-block fit guard as the Same/!origSame branch above.
+					if (resolved == Same && config.sameLine.forBody == FitLine) {
+						var body:Null<TokenTree> = getBodyAfterCondition(token);
+						if (body != null && body.tok.match(BrOpen) && TokenTreeCheckUtils.getBrOpenType(body) == Block) {
+							var blockClose:Null<TokenTree> = getCloseToken(body);
+							if (blockClose != null) {
+								var indent:Int = indenter.calcIndent(token);
+								var indentLen:Int = indenter.calcAbsoluteIndent(indent);
+								var fullLen:Int = calcLengthBetween(token, blockClose) + calcTokenLength(blockClose);
+								if ((indentLen + fullLen) > config.wrapping.maxLineLength) {
+									resolved = Next;
+								}
+							}
+						}
+					}
+					// Non-block body inside multi-line glued comprehension: force staircase.
+					// Phase 2's "Same when `for (in) if (cond)` partial fits" makes sense for
+					// chains in regular control-flow context, but here it joins `for` and `if`
+					// on the line with `[`, undermining the `]`-on-its-own-line layout below.
+					if (!bodyIsBlock) {
+						resolved = Next;
+					}
+					markBodyAfterPOpen(token, resolved, resolved == Same);
+				}
+				if (bkClose != null) {
+					// Uniform `[ for ... ]` spacing for the FitLine policy — both single-line and
+					// multi-line glued forms get a space, so the array boundary stays visible in
+					// dense expressions.
+					if (!config.whitespace.bracketConfig.comprehensionBrackets.openingPolicy.has(After)) {
+						whitespace(token, Before);
+					}
+					if (!config.whitespace.bracketConfig.comprehensionBrackets.closingPolicy.has(Before)) {
+						if (!fullFits && !bodyIsBlock) {
+							// Bare body (`[ for (...) if (cond) expr ]`) staircases to multiple
+							// lines; `]` belongs on its own line, not glued to the last expr.
+							lineEndBefore(bkClose);
+						} else {
+							whitespace(bkClose, Before);
+						}
+					}
+				}
+			case Next:
 				// do nothing
 		}
 	}
@@ -688,9 +778,30 @@ class MarkSameLine extends MarkerBase {
 		applySameLinePolicy(token, policy);
 	}
 
+	inline function isChainBodyKwd(body:Null<TokenTree>):Bool {
+		if (body == null) {
+			return false;
+		}
+		return switch (body.tok) {
+			case Kwd(KwdFor) | Kwd(KwdIf) | Kwd(KwdWhile) | Kwd(KwdDo): true;
+			case _: false;
+		}
+	}
+
 	function resolveFitLine(keyword:TokenTree, policy:SameLinePolicy):SameLinePolicy {
 		if (policy != FitLine) {
 			return policy;
+		}
+		// Cascade propagation: an outer chain link already decided this keyword
+		// must break its body too. Continue forcing Next down the chain while
+		// the body is still a control-flow Kwd whose own body is also a Kwd
+		// (deepest chain link stops the cascade so its non-Kwd body can stay inline).
+		if (_forceFitLineNext.contains(keyword)) {
+			var body:Null<TokenTree> = getBodyAfterCondition(keyword);
+			if (isChainBodyKwd(body) && isChainBodyKwd(getBodyAfterCondition(body))) {
+				_forceFitLineNext.push(body);
+			}
+			return Next;
 		}
 		// Skip fitLine for if/else constructs unless explicitly allowed
 		if (!config.sameLine.fitLineIfWithElse && isPartOfIfElse(keyword)) {
@@ -709,7 +820,12 @@ class MarkSameLine extends MarkerBase {
 		}
 
 		// Phase 2: if body is a nested keyword (for/if/while), check if just this level fits
-		// (up to the nested keyword's closing paren) — let the inner level decide for itself
+		// (up to the nested keyword's closing paren) — let the inner level decide for itself.
+		// Exception for 3+ chain links: every inner level's Phase 1 then succeeds at its own
+		// tree-based indent and no level breaks, leaving an un-broken chain that feeds
+		// conditionWrapping a maxLen-exceeding line which wraps each condition paren
+		// `(\n cond \n)`. Detect via `body.body` also being a Kwd chain link — cascade
+		// to staircase by forcing Next down the chain.
 		var body:Null<TokenTree> = getBodyAfterCondition(keyword);
 		if (body != null) {
 			switch (body.tok) {
@@ -718,6 +834,10 @@ class MarkSameLine extends MarkerBase {
 					if (pClose != null) {
 						var partialLen:Int = calcLengthBetween(keyword, pClose) + calcTokenLength(pClose);
 						if ((indentLen + partialLen) <= config.wrapping.maxLineLength) {
+							if (isChainBodyKwd(getBodyAfterCondition(body))) {
+								_forceFitLineNext.push(body);
+								return Next;
+							}
 							return Same;
 						}
 					}

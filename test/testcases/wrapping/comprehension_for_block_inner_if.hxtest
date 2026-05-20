@@ -1,0 +1,53 @@
+{
+	"indentation": {
+		"character": "tab",
+		"tabWidth": 4
+	},
+	"sameLine": {
+		"ifBody": "fitLine",
+		"forBody": "fitLine",
+		"whileBody": "fitLine",
+		"functionBody": "fitLine",
+		"expressionIf": "next"
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		final commands:Array<Command> = [
+			for (item in items) { if (!item.locked && item.canMove) {
+				final toPos:Point = new Point(item.x, item.y);
+				commands.push(new MoveCommand(item, toPos));
+			} }
+		];
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		final commands:Array<Command> = [
+			for (item in items) {
+				if (!item.locked && item.canMove) {
+					final toPos:Point = new Point(item.x, item.y);
+					commands.push(new MoveCommand(item, toPos));
+				}
+			}
+		];
+	}
+}

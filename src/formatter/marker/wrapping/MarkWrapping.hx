@@ -364,7 +364,7 @@ class MarkWrapping extends MarkWrappingBase {
 	/** Whether the opBool chain between the indices is wrapped (operands on
 	 *  separate lines). A break may be a hard Newline or a soft `wrapAfter`
 	 *  (resolved at emit), and with per-operand trailing comments it sits on
-	 *  the `CommentLine` after the operator (`) || // cmt⏎`), not on the
+	 *  the `CommentLine` after the operator (`) || // cmt\n`), not on the
 	 *  operator itself — all of these count. */
 	function hasChainBreaksBetween(startIdx:Int, endIdx:Int):Bool {
 		var idx:Int = startIdx;
@@ -641,6 +641,13 @@ class MarkWrapping extends MarkWrappingBase {
 			switch (item.first.tok) {
 				case Kwd(KwdFor), Kwd(KwdWhile):
 					if (config.sameLine.comprehensionFor == Keep) {
+						return;
+					}
+					// FitLine: MarkSameLine has already glued `[for`/`]` and decided body
+					// staircase via forBody policy — applying arrayWrap rules here (esp.
+					// onePerLine on hasMultilineItems) would re-insert breaks before `for`
+					// and `]`, defeating the glue. Skip wrapping entirely.
+					if (config.sameLine.comprehensionFor == FitLine) {
 						return;
 					}
 					itemsWithoutMetadata.push(item);

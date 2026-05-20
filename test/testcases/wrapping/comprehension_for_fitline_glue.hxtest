@@ -1,0 +1,62 @@
+{
+	"indentation": {
+		"character": "tab",
+		"tabWidth": 4
+	},
+	"sameLine": {
+		"ifBody": "fitLine",
+		"forBody": "fitLine",
+		"whileBody": "fitLine",
+		"functionBody": "fitLine",
+		"expressionIf": "next",
+		"comprehensionFor": "fitLine"
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		final entries:Array<Entry> = [ for (record in records) {
+			if (!record.frozen && record.dynamic) {
+				final origin:Spot = new Spot(record.x, record.y);
+				entries.push(new ShiftEntry(record, origin));
+			}
+		} ];
+		final ids:Array<Int> = [ for (i in 0...10) i * 2 ];
+		applyChangesToTargets([ for (target in pendingTargets)
+			if (target.mode == TargetKind.STATE_PRIMARY_ACTIVE || target.mode == TargetKind.STATE_SECONDARY_ACTIVE)
+				new EmitTargetChangeCommand(this, cast target, configContext)
+		]);
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		final entries:Array<Entry> = [ for (record in records) {
+			if (!record.frozen && record.dynamic) {
+				final origin:Spot = new Spot(record.x, record.y);
+				entries.push(new ShiftEntry(record, origin));
+			}
+		} ];
+		final ids:Array<Int> = [ for (i in 0...10) i * 2 ];
+		applyChangesToTargets([ for (target in pendingTargets)
+			if (target.mode == TargetKind.STATE_PRIMARY_ACTIVE || target.mode == TargetKind.STATE_SECONDARY_ACTIVE)
+				new EmitTargetChangeCommand(this, cast target, configContext)
+		]);
+	}
+}
