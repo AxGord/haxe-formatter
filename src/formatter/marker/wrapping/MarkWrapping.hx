@@ -435,7 +435,7 @@ class MarkWrapping extends MarkWrappingBase {
 		queueWrapping({
 			origin: TypeParameterWrapping,
 			start: token,
-			end: null,
+			end: close,
 			items: items,
 			rules: config.wrapping.typeParameter,
 			useTrailing: true,
@@ -1063,12 +1063,9 @@ class MarkWrapping extends MarkWrappingBase {
 	 * Late post-pass (after all bracket/call/type-param wrapping is materialized):
 	 *  `applyAssignmentWrapping`'s keptFirstLine predictor assumes the RHS bracket
 	 *  wraps; when it does not (e.g. a single short call argument → callParameter
-	 *  noWrap), the formatter falls back to splitting the RHS type parameters
-	 *  `<...>`. By this point that split is real, so act on the symptom instead of
-	 *  predicting: if an RHS `<...>` is broken, `=` is not already the break, and
-	 *  both halves fit after a break at `=` with the type parameters collapsed —
-	 *  do that. Narrow gate (broken RHS type parameter) keeps array/object/
-	 *  multi-arg-call initializers untouched (their `<...>` is never broken).
+	 *  noWrap), the line containing `=` may still overflow after every other wrap
+	 *  has run. In that case, break at `=` and collapse any type-parameter splits
+	 *  on either side, provided both halves then fit.
 	 */
 	function applyAssignmentTypeParamCollapse() {
 		for (assign in assignmentWraps) {
@@ -1090,14 +1087,14 @@ class MarkWrapping extends MarkWrappingBase {
 			if (findLhsTypeParameter(declRoot, assign) == null) {
 				continue;
 			}
-			if (!hasWrappedTypeParameter(next.token, semicolon)) {
-				continue;
-			}
 			var maxLen:Int = config.wrapping.maxLineLength;
-			var indent:Int = calcLineLengthBefore(declRoot);
-			if (indent + calcSpanLength(declRoot, semicolon) <= maxLen) {
+			// Gate: only fire when the line containing `=` still overflows after
+			//  every other wrap pass. If callParameter (or another inner bracket)
+			//  already broke the line to fit, breaking at `=` would be redundant.
+			if (calcLineLength(assign) <= maxLen) {
 				continue;
 			}
+			var indent:Int = calcLineLengthBefore(declRoot);
 			var lhsLen:Int = indent + calcSpanLength(declRoot, assign);
 			var rhsLen:Int = indent + config.indentation.tabWidth + calcSpanLength(next.token, semicolon);
 			if (lhsLen > maxLen || rhsLen > maxLen) {
@@ -1110,21 +1107,17 @@ class MarkWrapping extends MarkWrappingBase {
 	}
 
 	/**
-	 * Post-queue: when an `extends`/`implements` clause is too long and the
-	 *  formatter resolved it by splitting the base type's type parameters
-	 *  `<...>`, break before the `extends`/`implements` keyword instead and
-	 *  collapse the `<...>` back onto one line — provided both halves then fit.
-	 *  Scope is intentionally narrow (mirrors applyAssignmentWrapping): it only
-	 *  acts when a type parameter list was actually broken, so plain implements
-	 *  lists keep their normal onePerLine/fillLine wrapping.
+	 * Post-queue: when an `extends`/`implements` clause cannot fit on the
+	 *  declaration line — either because the base type's type parameters
+	 *  `<...>` have been split, or because the line as a whole still exceeds
+	 *  maxLineLength after every other wrap — break before the `extends` /
+	 *  `implements` keyword and collapse any split `<...>` back onto one line,
+	 *  provided both halves then fit.
 	 */
 	function applyExtendsWrapping() {
 		for (wrap in extendsWraps) {
 			var first:TokenTree = wrap.first;
 			var end:TokenTree = wrap.end;
-			if (!hasWrappedTypeParameter(first, end)) {
-				continue;
-			}
 			var lineStart:Null<TokenTree> = findLineStartToken(first);
 			if (lineStart == null) {
 				continue;
@@ -1134,6 +1127,9 @@ class MarkWrapping extends MarkWrappingBase {
 				continue;
 			}
 			var maxLen:Int = config.wrapping.maxLineLength;
+			if (calcLineLength(first) <= maxLen && !hasWrappedTypeParameter(first, end)) {
+				continue;
+			}
 			var indent:Int = calcLineLengthBefore(lineStart);
 			// Line kept on the declaration line if we break before `extends`.
 			var headLen:Int = indent + calcSpanLength(lineStart, prev.token);

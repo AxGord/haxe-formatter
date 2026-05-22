@@ -1,0 +1,32 @@
+{
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Module1 {
+	public final dataItem:Holder<RecordItem1, RecordItem1, Void> = new Holder<RecordItem1, RecordItem1, Void>('aaa/getDataItem', true, 'module.bucket.dataItemTag');
+}
+
+---
+
+class Module1 {
+	public final dataItem:Holder<RecordItem1, RecordItem1, Void> = new Holder<RecordItem1, RecordItem1, Void>(
+		'aaa/getDataItem', true, 'module.bucket.dataItemTag'
+	);
+}
