@@ -178,7 +178,7 @@ class MarkWhitespace extends MarkerBase {
 					}
 				case Binop(OpArrow):
 					policy = policy.add(After);
-				case Kwd(_):
+				case Kwd(_) | Const(CIdent(_)):
 					if (closing) {
 						policy = policy.add(After);
 					}

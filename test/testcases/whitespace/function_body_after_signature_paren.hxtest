@@ -1,0 +1,29 @@
+{
+	"whitespace": {
+		"parenConfig": {
+			"funcParamParens": {
+				"openingPolicy": "none",
+				"closingPolicy": "none"
+			}
+		}
+	},
+	"sameLine": {
+		"functionBody": "fitLine"
+	}
+}
+
+---
+
+class A {
+	public function new(x:Int) callOther(x);
+
+	public function a() doStuff();
+}
+
+---
+
+class A {
+	public function new(x:Int) callOther(x);
+
+	public function a() doStuff();
+}
