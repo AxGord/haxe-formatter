@@ -12,7 +12,7 @@
 
 ---
 
-@:nullSafety private final class FetchSingleValueA
-	extends SmartNodeTypeX<Null<Payload0>, Null<Payload0>, Null<Payload0>, {}, FailureValueX> {
+@:nullSafety
+private final class FetchSingleValueA extends SmartNodeTypeX<Null<Payload0>, Null<Payload0>, Null<Payload0>, {}, FailureValueX> {
 	public function new() {}
 }

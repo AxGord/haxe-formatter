@@ -1,0 +1,22 @@
+{
+	"wrapping": {
+		"maxLineLength": 140
+	},
+	"whitespace": {
+		"bracesConfig": {
+			"anonTypeBraces": {
+				"openingPolicy": "after",
+				"closingPolicy": "before"
+			}
+		}
+	}
+}
+
+---
+
+@:nullSafety final class Languages extends APISmartEntity<Array<Language>, Array<Language>, Array<Language>, { includeTranslations:Bool }, ErrorResponse> {}
+
+---
+
+@:nullSafety final class Languages
+	extends APISmartEntity<Array<Language>, Array<Language>, Array<Language>, { includeTranslations:Bool }, ErrorResponse> {}

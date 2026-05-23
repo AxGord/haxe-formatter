@@ -1,0 +1,22 @@
+{
+	"wrapping": {
+		"maxLineLength": 140
+	},
+	"whitespace": {
+		"bracesConfig": {
+			"anonTypeBraces": {
+				"openingPolicy": "after",
+				"closingPolicy": "before"
+			}
+		}
+	}
+}
+
+---
+
+@:nullSafety final class Foo extends Base<TypeAlpha, pkg.path.bundles.LongAlias.MyContent, { firstOptionName:Bool, secondName:String, extra:Int }> {}
+
+---
+
+@:nullSafety
+final class Foo extends Base<TypeAlpha, pkg.path.bundles.LongAlias.MyContent, { firstOptionName:Bool, secondName:String, extra:Int }> {}

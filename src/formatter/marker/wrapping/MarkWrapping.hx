@@ -1131,18 +1131,66 @@ class MarkWrapping extends MarkWrappingBase {
 				continue;
 			}
 			var indent:Int = calcLineLengthBefore(lineStart);
+			// Identify leading `@:meta` chain on the declaration line. When present,
+			//  lifting the metadata to its own line is preferred over breaking
+			//  before `extends`/`implements` if it alone makes the declaration line
+			//  fit (combine both only when neither alone fits).
+			var lastMetaToken:Null<TokenTree> = null;
+			var declStart:TokenTree = lineStart;
+			if (lineStart.tok.match(At)) {
+				var lastMeta:TokenTree = lineStart;
+				var sib:Null<TokenTree> = lineStart.nextSibling;
+				while ((sib != null) && sib.tok.match(At)) {
+					lastMeta = sib;
+					sib = sib.nextSibling;
+				}
+				lastMetaToken = TokenTreeCheckUtils.getLastToken(lastMeta);
+				if (lastMetaToken != null) {
+					var afterMeta:Null<TokenInfo> = getNextToken(lastMetaToken);
+					if (afterMeta != null) {
+						declStart = afterMeta.token;
+					} else {
+						lastMetaToken = null;
+					}
+				}
+			}
+			// Extend `end` to include the class body `{` when present — it's part
+			//  of the visual line, calcSpanLength stops before its trailing space.
+			var lineEnd:TokenTree = end;
+			var afterEnd:Null<TokenInfo> = getNextToken(end);
+			if (afterEnd != null && afterEnd.token.tok.match(BrOpen)) {
+				lineEnd = afterEnd.token;
+			}
 			// Line kept on the declaration line if we break before `extends`.
-			var headLen:Int = indent + calcSpanLength(lineStart, prev.token);
+			var headWithMeta:Int = indent + calcSpanLength(lineStart, prev.token);
 			// Continuation line indented one level (a declaration continuation,
 			//  not an onePerLine implements list), type parameters collapsed
 			//  back onto one line.
-			var contLen:Int = indent + config.indentation.tabWidth + calcSpanLength(first, end);
-			if (headLen > maxLen || contLen > maxLen) {
+			var contLen:Int = indent + config.indentation.tabWidth + calcSpanLength(first, lineEnd);
+			var hasMeta:Bool = lastMetaToken != null;
+			var declLenNoMeta:Int = hasMeta ? indent + calcSpanLength(declStart, lineEnd) : 0;
+			var headNoMeta:Int = hasMeta ? indent + calcSpanLength(declStart, prev.token) : 0;
+			var aFits:Bool = headWithMeta <= maxLen && contLen <= maxLen;
+			var bFits:Bool = hasMeta && declLenNoMeta <= maxLen;
+			var cFits:Bool = hasMeta && headNoMeta <= maxLen && contLen <= maxLen;
+			if (bFits) {
+				lineEndAfter(lastMetaToken);
+				collapseTypeParameterBreaks(first, end);
 				continue;
 			}
-			lineEndBefore(first);
-			additionalIndent(first, 1);
-			collapseTypeParameterBreaks(first, end);
+			if (aFits) {
+				lineEndBefore(first);
+				additionalIndent(first, 1);
+				collapseTypeParameterBreaks(first, end);
+				continue;
+			}
+			if (cFits) {
+				lineEndAfter(lastMetaToken);
+				lineEndBefore(first);
+				additionalIndent(first, 1);
+				collapseTypeParameterBreaks(first, end);
+				continue;
+			}
 		}
 	}
 
