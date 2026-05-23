@@ -8,11 +8,11 @@
 
 class Main {
 	static function main() {
-		final a:ShareSetBaseActionPayload = {
-			addActions: action.addActions != null ? action.addActions.coach.filter(ShareUtil.notMixed)
-				.map(u -> {email: u.email, canEdit: u.access == EDIT })
-				.concat(action.addActions.outside.filter(ShareUtil.notMixed)
-					.map(u -> {email: u.email, canEdit: u.access == EDIT })) : null,
+		final a:GenericRecordBatchPayload = {
+			firstField: holder.firstField != null ? holder.firstField.inner.filter(Validator.notEmpty)
+				.map(x -> {value: x.value, enabled: x.status == OPEN })
+				.concat(holder.firstField.lateral.filter(Validator.notEmpty)
+					.map(x -> {value: x.value, enabled: x.status == OPEN })) : null,
 		};
 	}
 }
@@ -21,11 +21,15 @@ class Main {
 
 class Main {
 	static function main() {
-		final a:ShareSetBaseActionPayload = {
-			addActions: action.addActions != null ? action.addActions.coach.filter(ShareUtil.notMixed)
-				.map(u -> {email: u.email, canEdit: u.access == EDIT})
-				.concat(action.addActions.outside.filter(ShareUtil.notMixed)
-					.map(u -> {email: u.email, canEdit: u.access == EDIT})) : null,
+		final a:GenericRecordBatchPayload = {
+			firstField: holder.firstField != null
+				? holder.firstField.inner.filter(Validator.notEmpty)
+					.map(x -> {value: x.value, enabled: x.status == OPEN})
+					.concat(
+						holder.firstField.lateral.filter(Validator.notEmpty)
+							.map(x -> {value: x.value, enabled: x.status == OPEN})
+					)
+				: null,
 		};
 	}
 }

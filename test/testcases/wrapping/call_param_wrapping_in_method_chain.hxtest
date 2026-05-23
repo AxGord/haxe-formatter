@@ -28,13 +28,13 @@
 class Main {
 	function test() {
 		if (cond) {
-			for (action in actions) {
-				if (action != null) {
+			for (holder in holders) {
+				if (holder != null) {
 					final a:Payload = {
-						addActions: action.addActions != null ? action.addActions.coach.filter(ShareUtil.notMixed)
-							.map(u -> {email: u.email, canEdit: u.access == EDIT})
-							.concat(action.addActions.outside.filter(ShareUtil.notMixed).map(u -> {email: u.email, canEdit: u.access == EDIT})) : null,
-						updateActions: null
+						firstField: holder.firstField != null ? holder.firstField.inner.filter(Validator.notEmpty)
+							.map(x -> {value: x.value, enabled: x.status == OPEN})
+							.concat(holder.firstField.lateral.filter(Validator.notEmpty).map(x -> {value: x.value, enabled: x.status == OPEN})) : null,
+						latestRecords: null
 					};
 				}
 			}
@@ -47,16 +47,18 @@ class Main {
 class Main {
 	function test() {
 		if (cond) {
-			for (action in actions) {
-				if (action != null) {
+			for (holder in holders) {
+				if (holder != null) {
 					final a:Payload = {
-						addActions: action.addActions != null ? action.addActions.coach.filter(ShareUtil.notMixed)
-							.map(u -> {email: u.email, canEdit: u.access == EDIT})
-							.concat(
-								action.addActions.outside.filter(ShareUtil.notMixed)
-									.map(u -> {email: u.email, canEdit: u.access == EDIT})
-							) : null,
-						updateActions: null
+						firstField: holder.firstField != null
+							? holder.firstField.inner.filter(Validator.notEmpty)
+								.map(x -> {value: x.value, enabled: x.status == OPEN})
+								.concat(
+									holder.firstField.lateral.filter(Validator.notEmpty)
+										.map(x -> {value: x.value, enabled: x.status == OPEN})
+								)
+							: null,
+						latestRecords: null
 					};
 				}
 			}

@@ -2026,6 +2026,9 @@ class MarkWrapping extends MarkWrappingBase {
 	 *  runs first and may break `.method(longArg)` via chain Dot, hiding the
 	 *  overflow from callParameter. This produces `.concat(\n\targ\n)` instead
 	 *  of `.concat(arg\n.chainedCall(...))`.
+	 *  Also fires when the opening line fits but the arg itself has internal
+	 *  method-chain breaks (multi-line arg) — keeps the call paren consistent
+	 *  with the arg's own wrapping instead of nesting the chain under the call.
 	 */
 	function wrapLongCallParamsInChains() {
 		for (place in wrappingQueue) {
@@ -2043,11 +2046,61 @@ class MarkWrapping extends MarkWrappingBase {
 			var pClose:Null<TokenTree> = place.end;
 			if (pClose == null) pClose = getCloseToken(place.start);
 			if (pClose == null) continue;
-			if (calcLineLength(place.start) <= config.wrapping.maxLineLength) continue;
+			var wrapAfterFit:Bool = false;
+			if (calcLineLength(place.start) <= config.wrapping.maxLineLength) {
+				// Line fits packed. Only wrap if arg has internal chain breaks
+				// AND the call lives inside a wrapped ternary branch — keeps the
+				// branch's layered chain consistent (`?`/`:` on own lines + arg
+				// of nested call on own line) without changing non-ternary cases.
+				if (!hasMethodChainBreaks(place.start.index, pClose.index)) continue;
+				if (!isInsideWrappedTernaryBranch(place.start)) continue;
+				wrapAfterFit = true;
+			}
 			// Apply callParameter wrapping
 			lineEndAfter(place.start);
 			lineEndBefore(pClose);
+			if (wrapAfterFit) {
+				// Chain breaks inside the arg were placed earlier on a shorter
+				// indent (before fillLineWithLeadingBreak gave the arg its own
+				// line). With the arg's new deeper indent the chain may now fit
+				// — collapse breaks left-to-right where the joined line still
+				// fits, restore otherwise.
+				collapseMethodChainBreaksInRange(place.start.index, pClose.index);
+			}
 		}
+	}
+
+	/** Walk Dot-after-PClose tokens in [startIdx, endIdx], remove each
+	 *  leading break if the merged line still fits; restore otherwise. */
+	function collapseMethodChainBreaksInRange(startIdx:Int, endIdx:Int) {
+		var idx:Int = startIdx;
+		while (idx < endIdx) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			if (!info.token.tok.match(Dot)) continue;
+			if (!isNewLineBefore(info.token)) continue;
+			if (!isDotAfterPClose(info.token)) continue;
+			noLineEndBefore(info.token);
+			if (calcLineLength(info.token) > config.wrapping.maxLineLength) {
+				lineEndBefore(info.token);
+			}
+		}
+	}
+
+	/** True when token sits inside a wrapped ternary's branch range (between
+	 *  `?` and the end of the false branch). Only counts ternaries whose `?`
+	 *  has a leading break (actually wrapped). */
+	function isInsideWrappedTernaryBranch(token:TokenTree):Bool {
+		for (wrap in ternaryWraps) {
+			if (!isNewLineBefore(wrap.question)) continue;
+			var end:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(wrap.dblDot);
+			if (end == null) continue;
+			if (token.index > wrap.question.index && token.index < end.index) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	function breakLongMethodChains() {
@@ -2143,11 +2196,11 @@ class MarkWrapping extends MarkWrappingBase {
 	 * Post-`breakLongMethodChains`: sibling of `preferParenWrapOverSingleArgChainBreak`.
 	 *  When a detected ternary was NOT wrapped (its collapse check was fooled by a
 	 *  queue break shortening the first physical line) and a branch contains a
-	 *  method-chain break (overflow fallback), prefer wrapping the ternary and
-	 *  collapsing the chain — provided the condition line and both branch lines
-	 *  then fit. Acts on the materialized chain break; idempotent (gate is the
-	 *  break itself — once the ternary is wrapped and the chain collapsed, the
-	 *  branch fits and there is no chain break to re-trigger on).
+	 *  method-chain break (overflow fallback), prefer wrapping the ternary. If both
+	 *  branches then fit on one line, also strip the chain breaks for a clean look;
+	 *  otherwise keep them so the branches remain readable. Acts on the materialized
+	 *  chain break; idempotent (gate is the break itself — once the ternary is wrapped,
+	 *  any remaining chain breaks live inside an already-wrapped branch).
 	 */
 	function preferTernaryWrapOverBranchChainBreak() {
 		var maxLen:Int = config.wrapping.maxLineLength;
@@ -2168,8 +2221,12 @@ class MarkWrapping extends MarkWrappingBase {
 			var condLen:Int = indent + calcSpanLength(lineStart, condEnd.token);
 			var trueLen:Int = branchIndent + calcSpanLength(wrap.question, trueEnd.token);
 			var falseLen:Int = branchIndent + calcSpanLength(wrap.dblDot, dblDotEnd);
-			if (condLen > maxLen || trueLen > maxLen || falseLen > maxLen) continue;
-			stripMethodChainBreaks(wrap.question.index, dblDotEnd.index);
+			if (condLen > maxLen) continue;
+			// Both branches fit on one line — strip chain breaks for clean look.
+			// Otherwise keep chain breaks (branches still need them).
+			if (trueLen <= maxLen && falseLen <= maxLen) {
+				stripMethodChainBreaks(wrap.question.index, dblDotEnd.index);
+			}
 			lineEndBefore(wrap.question);
 			lineEndBefore(wrap.dblDot);
 		}

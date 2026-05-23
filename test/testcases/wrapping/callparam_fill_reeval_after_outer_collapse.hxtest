@@ -31,7 +31,7 @@ class Main {
 			if (disposed) {
 				if (flag) {
 					outer.dispatch(new ChangeEvent(
-						ChangeEvent.UPDATE, _targets, ShareUtil.createEmptyShareUsers(), users, ShareUtil.createEmptyShareUsers()
+						ChangeEvent.UPDATE, _targets, Validator.createEmptyMembership(), users, Validator.createEmptyMembership()
 					));
 				}
 			}
@@ -47,7 +47,7 @@ class Main {
 			if (disposed) {
 				if (flag) {
 					outer.dispatch(new ChangeEvent(
-						ChangeEvent.UPDATE, _targets, ShareUtil.createEmptyShareUsers(), users, ShareUtil.createEmptyShareUsers()
+						ChangeEvent.UPDATE, _targets, Validator.createEmptyMembership(), users, Validator.createEmptyMembership()
 					));
 				}
 			}

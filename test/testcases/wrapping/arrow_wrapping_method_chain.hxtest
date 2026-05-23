@@ -8,7 +8,7 @@
 
 class Main {
 	static function main() {
-		var result = items.filter(ShareUtil.notMixed).map(u -> {email: u.email, canEdit: u.access == EDIT});
+		var result = items.filter(Validator.notEmpty).map(x -> {value: x.value, enabled: x.status == OPEN});
 	}
 }
 
@@ -16,7 +16,7 @@ class Main {
 
 class Main {
 	static function main() {
-		var result = items.filter(ShareUtil.notMixed)
-			.map(u -> {email: u.email, canEdit: u.access == EDIT});
+		var result = items.filter(Validator.notEmpty)
+			.map(x -> {value: x.value, enabled: x.status == OPEN});
 	}
 }

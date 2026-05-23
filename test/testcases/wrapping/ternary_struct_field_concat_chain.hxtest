@@ -1,0 +1,93 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"indentation": {
+		"character": "tab",
+		"tabWidth": 4
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [
+						{"cond": "itemCount <= n", "value": 1},
+						{"cond": "totalItemLength <= n", "value": 100}
+					],
+					"type": "noWrap"
+				}
+			]
+		},
+		"opBoolChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [
+						{"cond": "itemCount <= n", "value": 3},
+						{"cond": "exceedsMaxLineLength", "value": 0}
+					],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "beforeLast"
+				}
+			]
+		},
+		"ternaryExpression": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "onePerLineAfterFirst",
+					"location": "beforeLast"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		for (holder in items) {
+			final a = {
+				firstField: holder.firstField != null ? holder.firstField.inner.filter(Validator.notEmpty).map(x -> {value: x.value, enabled: x.status == OPEN}).concat(holder.firstField.lateral.filter(Validator.notEmpty).map(x -> {value: x.value, enabled: x.status == OPEN})) : null,
+				latestRecords: holder.latestRecords != null ? holder.latestRecords.inner.map(x -> {value: x.value, enabled: x.status == OPEN}).concat(holder.latestRecords.lateral.map(x -> {value: x.value, enabled: x.status == OPEN})) : null
+			};
+		}
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		for (holder in items) {
+			final a = {
+				firstField: holder.firstField != null
+					? holder.firstField.inner.filter(Validator.notEmpty)
+						.map(x -> {value: x.value, enabled: x.status == OPEN})
+						.concat(
+							holder.firstField.lateral.filter(Validator.notEmpty).map(x -> {value: x.value, enabled: x.status == OPEN})
+						)
+					: null,
+				latestRecords: holder.latestRecords != null
+					? holder.latestRecords.inner.map(x -> {value: x.value, enabled: x.status == OPEN})
+						.concat(holder.latestRecords.lateral.map(x -> {value: x.value, enabled: x.status == OPEN}))
+					: null
+			};
+		}
+	}
+}
