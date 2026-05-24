@@ -122,6 +122,76 @@ class MarkWrapping extends MarkWrappingBase {
 		applyParenIndentWrapping();
 		wrapLongCallParamsInChains();
 		applyAssignmentTypeParamCollapse();
+		wrapLongCollapsedSingleArgCall();
+	}
+
+	/**
+	 * Late post-pass: a single-arg callParameter rule (e.g. `itemCount <= 1 &&
+	 *  totalItemLength <= 100 → noWrap`) can leave a call collapsed even when the
+	 *  enclosing line exceeds maxLineLength. When the surrounding context (assignment,
+	 *  decl LHS, method-chain prefix) is what makes the line long, no other post-pass
+	 *  fixes it. Override the rule and apply `fillLineWithLeadingBreak` when wrapping
+	 *  makes both the opening line and the content line fit.
+	 */
+	function wrapLongCollapsedSingleArgCall() {
+		for (place in wrappingQueue) {
+			if (place.origin != CallParameterWrapping) continue;
+			if (place.items == null || place.items.length != 1) continue;
+			if (place.start == null) continue;
+			if (isNewLineAfter(place.start)) continue;
+			var pClose:Null<TokenTree> = place.end;
+			if (pClose == null) pClose = getCloseToken(place.start);
+			if (pClose == null) continue;
+			var lineStart:Null<TokenTree> = findLineStartToken(place.start);
+			if (lineStart == null) continue;
+			// Narrow scope: only when the line is a declaration/assignment with the
+			// call on the RHS (`var/final/field … = obj.call(arg)`). Other contexts
+			// (call args, conditions, expression-paren) have their own wrap logic.
+			var hasAssign:Bool = false;
+			var ai:Int = lineStart.index;
+			while (ai < place.start.index) {
+				var aInfo:Null<TokenInfo> = parsedCode.tokenList.tokens[ai];
+				ai++;
+				if (aInfo == null) continue;
+				if (aInfo.token.tok.match(Binop(OpAssign))) {
+					hasAssign = true;
+					break;
+				}
+			}
+			if (!hasAssign) continue;
+			// Narrow further: skip when ANY newline break inside the arg is NOT a
+			// ternary `?`/`:` break — opAdd chains, multi-arg-call commas (at any
+			// depth), etc. have their own wrap logic. Wrap only when the arg is
+			// monolithic (no inner breaks: long string, simple expression) or has
+			// only ternary breaks (whose indent assumes call paren wrapped — broken
+			// layout when it didn't).
+			var hasNonTernaryBreak:Bool = false;
+			var ti:Int = place.start.index + 1;
+			while (ti < pClose.index) {
+				var tinfo:Null<TokenInfo> = parsedCode.tokenList.tokens[ti];
+				ti++;
+				if (tinfo == null) continue;
+				if (tinfo.whitespaceAfter != Newline) continue;
+				var next:Null<TokenInfo> = parsedCode.tokenList.tokens[ti];
+				if (next == null) continue;
+				switch (next.token.tok) {
+					case Question | DblDot:
+					case _: hasNonTernaryBreak = true;
+				}
+				if (hasNonTernaryBreak) break;
+			}
+			if (hasNonTernaryBreak) continue;
+			var indent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(lineStart));
+			var headLen:Int = indent + calcSpanLength(lineStart, place.start) + calcTokenLength(place.start);
+			var contentLen:Int = indent + config.indentation.tabWidth + calcSpanLength(place.start, pClose) - calcTokenLength(place.start) - calcTokenLength(pClose);
+			var fullCollapsedLen:Int = indent + calcSpanLength(lineStart, pClose) + calcTokenLength(pClose);
+			if (fullCollapsedLen <= config.wrapping.maxLineLength) continue;
+			if (headLen > config.wrapping.maxLineLength) continue;
+			if (contentLen > config.wrapping.maxLineLength) continue;
+			stripBreaksBetween(place.start.index + 1, pClose.index);
+			lineEndAfter(place.start);
+			lineEndBefore(pClose);
+		}
 	}
 
 	/**

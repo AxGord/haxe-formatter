@@ -1,0 +1,52 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}],
+					"type": "noWrap"
+				}
+			]
+		}
+	},
+	"sameLine": {
+		"ifBody": "fitLine",
+		"forBody": "fitLine",
+		"whileBody": "fitLine",
+		"functionBody": "fitLine"
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		if (true) {
+			final result:ResultSet = database.request('SELECT a_long_column_name, b_column, c_column FROM long_named_table ORDER BY a_long_column_name');
+		}
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		if (true) {
+			final result:ResultSet = database.request(
+				'SELECT a_long_column_name, b_column, c_column FROM long_named_table ORDER BY a_long_column_name'
+			);
+		}
+	}
+}
