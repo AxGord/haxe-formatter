@@ -1,0 +1,38 @@
+{
+	"indentation": {
+		"character": "tab",
+		"tabWidth": 4
+	},
+	"wrapping": {
+		"maxLineLength": 140
+	},
+	"whitespace": {
+		"bracesConfig": {
+			"objectLiteralBraces": {
+				"openingPolicy": "after",
+				"closingPolicy": "before"
+			}
+		}
+	},
+	"sameLine": {
+		"comprehensionFor": "fitLine"
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		final entries:Array<Int> = [ for (i in 0...10) {
+			text: i, data: i
+		} ];
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		final entries:Array<Int> = [ for (i in 0...10) { text: i, data: i } ];
+	}
+}

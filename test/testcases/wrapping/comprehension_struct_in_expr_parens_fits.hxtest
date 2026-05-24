@@ -1,0 +1,70 @@
+{
+	"indentation": {
+		"character": "tab",
+		"tabWidth": 4
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	},
+	"whitespace": {
+		"commaPolicy": "after",
+		"openingBracketPolicy": "none",
+		"closingBracketPolicy": "none",
+		"bracesConfig": {
+			"objectLiteralBraces": {
+				"openingPolicy": "after",
+				"closingPolicy": "before"
+			}
+		},
+		"parenConfig": {
+			"expressionParens": {
+				"openingPolicy": "none",
+				"closingPolicy": "none"
+			}
+		}
+	},
+	"sameLine": {
+		"ifBody": "fitLine",
+		"forBody": "fitLine",
+		"whileBody": "fitLine",
+		"functionBody": "fitLine",
+		"expressionIf": "next",
+		"comprehensionFor": "fitLine"
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		final valueEntries:Array<OptionListItemRecord<Int>> = [ for (i in 0...60) ({
+			text: format(i), data: i
+		}) ];
+	}
+}
+
+---
+
+class Main {
+	function main() {
+		final valueEntries:Array<OptionListItemRecord<Int>> = [ for (i in 0...60) ({ text: format(i), data: i }) ];
+	}
+}

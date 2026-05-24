@@ -6,6 +6,7 @@ import sys.io.File;
 #end
 import formatter.codedata.CodeLines;
 import formatter.codedata.FormatterInputData;
+import formatter.codedata.ParsedCode;
 import formatter.config.Config;
 import formatter.marker.Indenter;
 import formatter.marker.MarkAdditionalIndentation;
@@ -17,7 +18,11 @@ import formatter.marker.MarkWhitespace;
 import formatter.marker.wrapping.MarkWrapping;
 import haxe.CallStack;
 import haxe.io.Path;
+import tokentree.TokenTree;
+import tokentree.TokenTree.FilterResult;
 import tokentree.TokenTreeBuilder.TokenTreeEntryPoint;
+import tokentree.utils.TokenTreeCheckUtils;
+import tokentree.utils.TokenTreeCheckUtils.BrOpenType;
 
 enum Result {
 	Success(formattedCode:String);
@@ -135,6 +140,7 @@ class Formatter {
 			var markAdditionalIndent = new MarkAdditionalIndentation(config, parsedCode, indenter);
 
 			markTokenText.run();
+			fixupAmbiguousBrOpenTypes(parsedCode);
 			markWhitespace.run();
 			markLineEnds.run();
 			markSameLine.run();
@@ -156,6 +162,45 @@ class Formatter {
 			var callstack = CallStack.toString(CallStack.exceptionStack());
 			return Failure(e + "\n" + callstack + "\n\n");
 		}
+	}
+
+	/**
+	 * tokentree 1.2.18 classifies `{...}` inside `for body ({...})` as `Unknown`
+	 * because the enclosing POpen's parent is `for` → POpenType=ForLoop → BrOpenType=Unknown.
+	 * Downstream passes then treat the struct as `unknownBraces` instead of
+	 * `objectLiteralBraces`, breaking whitespace / line-end / wrapping.
+	 *
+	 * Walk all BrOpen tokens once, before any pass runs, and rewrite Unknown to the
+	 * shape suggested by the children. The result is cached on the TokenTree, so every
+	 * subsequent `getBrOpenType` call picks up the corrected type.
+	 */
+	@:access(tokentree.TokenTree)
+	static function fixupAmbiguousBrOpenTypes(parsedCode:ParsedCode):Void {
+		final brOpens:Array<TokenTree> = parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
+			return token.tok.match(BrOpen) ? FoundGoDeeper : GoDeeper;
+		});
+		for (brOpen in brOpens) {
+			if (TokenTreeCheckUtils.getBrOpenType(brOpen) != Unknown) continue;
+			final inferred:BrOpenType = inferBrOpenTypeFromChildren(brOpen);
+			if (inferred == Unknown) continue;
+			brOpen.tokenTypeCache.brOpenType = inferred;
+		}
+	}
+
+	static function inferBrOpenTypeFromChildren(token:TokenTree):BrOpenType {
+		if (token.children == null || token.children.length == 0) return Unknown;
+		for (child in token.children) {
+			switch (child.tok) {
+				case BrClose:
+					return ObjectDecl;
+				case Const(CIdent(_)), Const(CString(_)):
+					return child.access().firstChild().matches(DblDot).exists() ? ObjectDecl : Block;
+				case At, Comment(_), CommentLine(_), Sharp(_):
+				default:
+					return Block;
+			}
+		}
+		return ObjectDecl;
 	}
 
 	#if (sys || nodejs)

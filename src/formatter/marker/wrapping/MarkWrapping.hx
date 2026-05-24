@@ -524,9 +524,15 @@ class MarkWrapping extends MarkWrappingBase {
 			whitespace(brClose, NoneBefore);
 			return;
 		}
+		// When original layout is multi-line, default behavior preserves it via one-per-line.
+		// Exception: when this ObjectDecl is the body of an array-comprehension `for` with
+		// FitLine policy AND the collapsed span fits on the surrounding line, follow the
+		// configured rules (which typically pick NoWrap → collapse).
 		if (!parsedCode.isOriginalSameLine(token, brClose)) {
-			wrapChildOneLineEach(token, brClose, 0);
-			return;
+			if (!shouldCollapseInComprehension(token, brClose)) {
+				wrapChildOneLineEach(token, brClose, 0);
+				return;
+			}
 		}
 		var minLength:Int = 9999;
 		var maxLength:Int = 0;
@@ -592,6 +598,51 @@ class MarkWrapping extends MarkWrappingBase {
 					}
 				}
 		}
+	}
+
+	/**
+	 * Returns true when `brOpen` is an ObjectDecl in the body of an array-comprehension
+	 * `for` (possibly wrapped in expressionParens like `({...})`) under FitLine policy
+	 * AND the full struct collapsed onto its current line would fit in maxLineLength.
+	 * In that case the multi-line layout from the source can be discarded; otherwise
+	 * preserve original structure via one-per-line.
+	 */
+	function shouldCollapseInComprehension(brOpen:TokenTree, brClose:TokenTree):Bool {
+		if (config.sameLine.comprehensionFor != FitLine) return false;
+		if (!isInsideComprehensionForBody(brOpen)) return false;
+		final indent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(brOpen));
+		final collapsedSpan:Int = calcSpanLength(brOpen, brClose);
+		return (indent + calcLineLengthBefore(brOpen) + collapsedSpan) <= config.wrapping.maxLineLength;
+	}
+
+	function isInsideComprehensionForBody(token:TokenTree):Bool {
+		var parent:Null<TokenTree> = token.parent;
+		while (parent != null) {
+			switch (parent.tok) {
+				case Kwd(KwdFor):
+					return isComprehensionFor(parent);
+				case BrOpen:
+					return false;
+				default:
+					parent = parent.parent;
+			}
+		}
+		return false;
+	}
+
+	function isComprehensionFor(forKw:TokenTree):Bool {
+		var parent:Null<TokenTree> = forKw.parent;
+		while (parent != null) {
+			switch (parent.tok) {
+				case Kwd(KwdFor), Kwd(KwdWhile), Kwd(KwdIf), Kwd(KwdElse):
+					parent = parent.parent;
+				case BkOpen:
+					return true;
+				default:
+					return false;
+			}
+		}
+		return false;
 	}
 
 	function markPWrapping(token:TokenTree) {
