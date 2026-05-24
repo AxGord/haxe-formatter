@@ -40,7 +40,9 @@ class Main {
 	function test() {
 		call(
 			func('Move'),
-			func('When moving, the item will not be available within the shared collection for users.\nAre you sure you want to perform the move?')
+			func(
+				'When moving, the item will not be available within the shared collection for users.\nAre you sure you want to perform the move?'
+			)
 		);
 	}
 }

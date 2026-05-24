@@ -299,16 +299,12 @@ class MarkWrapping extends MarkWrappingBase {
 				}
 				noLineEndBefore(nextAfterClose.token);
 			}
-			// Doesn't fit on one line — check if wrapping actually helps.
-			// If the wrapped content line also exceeds maxLineLength
-			// (e.g. single long string literal), wrapping is futile — keep unwrapped.
+			// Doesn't fit on one line — apply wrap unconditionally. Even when the
+			// wrapped content line still exceeds maxLineLength, wrapping respects
+			// the user's explicit rules (totalItemLength/exceedsMaxLineLength) and
+			// is the lesser evil vs. an even longer one-liner.
 			lineEndAfter(place.start);
 			lineEndBefore(pClose);
-			var contentToken:Null<TokenTree> = place.items[0].first;
-			if (contentToken != null && calcLineLength(contentToken) > config.wrapping.maxLineLength) {
-				noLineEndAfter(place.start);
-				noLineEndBefore(pClose);
-			}
 		}
 	}
 

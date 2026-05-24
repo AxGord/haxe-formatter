@@ -1,0 +1,64 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}],
+					"type": "noWrap"
+				}
+			]
+		}
+	},
+	"sameLine": {
+		"ifBody": "fitLine",
+		"forBody": "fitLine",
+		"whileBody": "fitLine",
+		"functionBody": "fitLine"
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		if (version == 0) {
+			try {
+				connection.request(
+					'SELECT col_aaaa, colaaa, col_aaaa, colaaaaaaaaaaaa, colaaa, colaaaaaa, col_aaaaaaaaaaaaaa, col_aaaaaaaaaaaaaaaaaaaa FROM table'
+				);
+				version = 2;
+			} catch (exception:Exception) {
+				log('check error: $exception');
+			}
+		}
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		if (version == 0) {
+			try {
+				connection.request(
+					'SELECT col_aaaa, colaaa, col_aaaa, colaaaaaaaaaaaa, colaaa, colaaaaaa, col_aaaaaaaaaaaaaa, col_aaaaaaaaaaaaaaaaaaaa FROM table'
+				);
+				version = 2;
+			} catch (exception:Exception) {
+				log('check error: $exception');
+			}
+		}
+	}
+}
