@@ -400,15 +400,13 @@ class MarkWrappingBase extends MarkerBase {
 			return;
 		}
 		// Block-rooted chain: `findOpAddItemStart` lands on a Block `{` when the parser
-		// splits a Sharp-containing chain into siblings at block level. Running the
-		// fill-line pass here removes the break before the first item (KwdReturn) by
-		// way of `noLineEndBefore(item.first)`, collapsing the function body onto its
-		// signature. The companion chain rooted at the actual statement (KwdReturn)
-		// already drives the in-chain wrapping, and post-#end indent is handled by
-		// `indentChainContinuationAfterSharpEnd`. So leave the block-level chain alone.
-		if (open != null && open.tok.match(BrOpen) && TokenTreeCheckUtils.getBrOpenType(open) == Block) {
-			return;
-		}
+		// splits a Sharp-containing chain into siblings at block level. We still need
+		// the per-item wrapping (post-#end siblings can easily push the line over
+		// maxLineLength), but the "open" here is the function body `{` and the first
+		// item is the statement keyword (e.g. KwdReturn). The usual joining ops at
+		// open/first-item boundary would collapse `{ return` onto the signature line.
+		// Skip just those two; let the rest of the loop wrap post-#end content.
+		var blockOpen:Bool = open != null && open.tok.match(BrOpen) && TokenTreeCheckUtils.getBrOpenType(open) == Block;
 		var lineStart:Null<TokenTree> = open;
 		if (lineStart == null) {
 			lineStart = items[0].first;
@@ -419,6 +417,18 @@ class MarkWrappingBase extends MarkerBase {
 		}
 		var indent:Int = indenter.calcIndent(lineStart);
 		var lineLength:Int = calcLineLengthBefore(open) + indenter.calcAbsoluteIndent(indent) + calcTokenLength(open);
+		if (blockOpen) {
+			// Reset to the first item's own indent — the chain effectively starts there,
+			// not on the signature line, and the signature-line length is irrelevant
+			// for deciding whether subsequent items overflow. Use the item's indent for
+			// `indent` too, so the +1 continuation indent for break lines is computed
+			// relative to the in-block chain rather than the function signature.
+			indent = indenter.calcIndent(items[0].first);
+			lineLength = indenter.calcAbsoluteIndent(indent) + items[0].firstLineLength;
+			// Force +1 continuation indent on subsequent break points so post-#end
+			// chain items align with the in-#if chain rather than with `{`.
+			if (addIndent <= 0) addIndent = 1;
+		}
 		var first:Bool = true;
 		for (item in items) {
 			var tokenLength:Int = item.firstLineLength;
@@ -455,7 +465,12 @@ class MarkWrappingBase extends MarkerBase {
 				continue;
 			} else {
 				if (first) {
-					noLineEndBefore(item.first);
+					// For a block-rooted chain, the first item is the statement keyword
+					// (e.g. KwdReturn). Joining it back onto `open` would collapse
+					// `{ return` onto the signature line — leave that break alone.
+					if (!blockOpen) {
+						noLineEndBefore(item.first);
+					}
 				} else {
 					var prev:TokenInfo = getPreviousToken(item.first);
 					if (prev != null) {
@@ -493,7 +508,11 @@ class MarkWrappingBase extends MarkerBase {
 				}
 			}
 		}
-		noLineEndAfter(open);
+		// For block-rooted chains, `open` is the function body `{`; joining whatever
+		// follows would also collapse `{ return` onto the signature.
+		if (!blockOpen) {
+			noLineEndAfter(open);
+		}
 		wrapAfter(open, false);
 	}
 
