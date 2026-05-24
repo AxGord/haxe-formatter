@@ -399,6 +399,16 @@ class MarkWrappingBase extends MarkerBase {
 		if (items.length <= 0) {
 			return;
 		}
+		// Block-rooted chain: `findOpAddItemStart` lands on a Block `{` when the parser
+		// splits a Sharp-containing chain into siblings at block level. Running the
+		// fill-line pass here removes the break before the first item (KwdReturn) by
+		// way of `noLineEndBefore(item.first)`, collapsing the function body onto its
+		// signature. The companion chain rooted at the actual statement (KwdReturn)
+		// already drives the in-chain wrapping, and post-#end indent is handled by
+		// `indentChainContinuationAfterSharpEnd`. So leave the block-level chain alone.
+		if (open != null && open.tok.match(BrOpen) && TokenTreeCheckUtils.getBrOpenType(open) == Block) {
+			return;
+		}
 		var lineStart:Null<TokenTree> = open;
 		if (lineStart == null) {
 			lineStart = items[0].first;
@@ -483,12 +493,7 @@ class MarkWrappingBase extends MarkerBase {
 				}
 			}
 		}
-		// Skip `noLineEndAfter(open)` when `open` is a Block `{` — the chain rooted at
-		// the block (post-#end siblings of a Sharp-split statement) would otherwise
-		// collapse the function body onto the signature line.
-		if (open == null || !(open.tok.match(BrOpen) && TokenTreeCheckUtils.getBrOpenType(open) == Block)) {
-			noLineEndAfter(open);
-		}
+		noLineEndAfter(open);
 		wrapAfter(open, false);
 	}
 
