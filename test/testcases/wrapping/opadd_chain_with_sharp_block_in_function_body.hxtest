@@ -1,0 +1,42 @@
+{
+	"wrapping": {
+		"maxLineLength": 140,
+		"opAddSubChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"},
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}], "type": "fillLine", "location": "beforeLast"}
+			]
+		}
+	},
+	"sameLine": {
+		"functionBody": "fitLine"
+	}
+}
+
+---
+
+class Main {
+	private function summaryStr():String {
+		return "--------------------------------------" + endl +
+		"itemname:\t" + context.bookmark + endl +
+		#if !debug
+			"library:\t" + context.bundleLabel + endl +
+			"release:\t" + context.release + endl +
+		#end
+		"item. ID:\t" + context.id + endl +
+		"updated:\t" + context.firstSeen.toString();
+	}
+}
+
+---
+
+class Main {
+	private function summaryStr():String {
+		return "--------------------------------------" + endl + "itemname:\t" + context.bookmark + endl +
+			#if !debug
+			"library:\t" + context.bundleLabel + endl + "release:\t" + context.release + endl +
+			#end
+			"item. ID:\t" + context.id + endl + "updated:\t" + context.firstSeen.toString();
+	}
+}

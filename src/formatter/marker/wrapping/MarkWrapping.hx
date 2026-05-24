@@ -82,6 +82,7 @@ class MarkWrapping extends MarkWrappingBase {
 		applyWrappingQueue();
 		reEvaluateSingleArgCallParam();
 		reEvaluateOpBoolAfterCallParam();
+		indentChainContinuationAfterSharpEnd();
 		// Fix indent for chain items added by extendChainAcrossSharp:
 		// these tokens are at a shallower tree depth than the chain's original items,
 		// so they need extra indent to align with the chain.
@@ -329,6 +330,57 @@ class MarkWrapping extends MarkWrappingBase {
 			noWrappingBetween(innerPlace.start, innerPClose, false);
 			noLineEndBefore(innerPClose);
 			applyWrappingPlace(innerPlace);
+		}
+	}
+
+	/**
+	 * Post-queue: when an opAdd chain inside a Block-level expression is split by
+	 *  `#if/#end`, the parser puts post-#end siblings at the enclosing BrOpen level.
+	 *  Those tokens get the block's natural indent, breaking visual alignment with
+	 *  the chain continuation inside the conditional. Walk every Sharp(end) whose
+	 *  parent is a Block BrOpen and push +1 additional indent on the next non-Sharp
+	 *  sibling token, so it lines up with the chain's continuation indent.
+	 */
+	function indentChainContinuationAfterSharpEnd() {
+		var sharpEnds:Array<TokenTree> = parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
+			return switch (token.tok) {
+				case Sharp(MarkLineEnds.SHARP_END): FoundSkipSubtree;
+				default: GoDeeper;
+			}
+		});
+		for (sharpEnd in sharpEnds) {
+			if (sharpEnd.parent == null || !sharpEnd.parent.tok.match(Sharp(MarkLineEnds.SHARP_IF))) continue;
+			var sharpIf:TokenTree = sharpEnd.parent;
+			// Only act when this Sharp pair is an operand inside an opAdd chain — that's
+			// the case where the parser splits the chain into siblings at block level.
+			// Statement-level conditionals (`#if cpp ... #end` wrapping whole statements)
+			// have Sharp(if) as a direct child of the block and must be left untouched.
+			if (sharpIf.parent == null) continue;
+			switch (sharpIf.parent.tok) {
+				case Binop(OpAdd), Binop(OpSub):
+				default: continue;
+			}
+			// Walk up to the ancestor that sits directly inside a Block BrOpen — that's
+			// the statement the Sharp lives in. The post-#end chain is kept as a sibling
+			// of that statement at block level, so its first token needs the continuation
+			// bump to align with the wrapped chain inside #if/#end.
+			var anchor:TokenTree = sharpIf;
+			while (anchor.parent != null && !anchor.parent.tok.match(BrOpen)) {
+				anchor = anchor.parent;
+			}
+			if (anchor.parent == null) continue;
+			if (TokenTreeCheckUtils.getBrOpenType(anchor.parent) != Block) continue;
+			var next:Null<TokenTree> = anchor.nextSibling;
+			while (next != null) {
+				switch (next.tok) {
+					case Sharp(_), Comma, Semicolon, BrClose:
+						next = next.nextSibling;
+					default:
+						break;
+				}
+			}
+			if (next == null) continue;
+			additionalIndent(next, 1);
 		}
 	}
 

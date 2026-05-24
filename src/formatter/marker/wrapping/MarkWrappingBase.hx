@@ -483,7 +483,12 @@ class MarkWrappingBase extends MarkerBase {
 				}
 			}
 		}
-		noLineEndAfter(open);
+		// Skip `noLineEndAfter(open)` when `open` is a Block `{` — the chain rooted at
+		// the block (post-#end siblings of a Sharp-split statement) would otherwise
+		// collapse the function body onto the signature line.
+		if (open == null || !(open.tok.match(BrOpen) && TokenTreeCheckUtils.getBrOpenType(open) == Block)) {
+			noLineEndAfter(open);
+		}
 		wrapAfter(open, false);
 	}
 

@@ -612,7 +612,10 @@ class MarkLineEnds extends MarkerBase {
 				if (prev == null) {
 					return !isOnlyWhitespaceBeforeToken(token);
 				}
-				if (prev.whitespaceAfter == Newline) {
+				// `prev.whitespaceAfter` is unreliable here: MarkWhitespace runs first and
+				// rewrites Binop trailing whitespace to Space regardless of original layout,
+				// masking source-level newlines. Use the original source to decide instead.
+				if (!parsedCode.isOriginalSameLine(prev.token, token)) {
 					return false;
 				}
 				switch (prev.token.tok) {
