@@ -123,6 +123,7 @@ class MarkWrapping extends MarkWrappingBase {
 		preferTernaryWrapOverBranchChainBreak();
 		preferFunctionSignatureWrapOverInnerParen();
 		preferChainKwdBodyNextLineOverCallParenWrap();
+		preferCompareBreakOverInnerCallParamWrap();
 		breakLongOpBoolOperandAtCompare();
 		applyParenIndentWrapping();
 		wrapLongCallParamsInChains();
@@ -2851,6 +2852,55 @@ class MarkWrapping extends MarkWrappingBase {
 			stripBreaksBetween(place.start.index, pClose.index);
 			lineEndBefore(callIdent);
 		}
+	}
+
+	/** When a callParameter wrap inside a condition operand sits immediately
+	 *  before an equality compare (`call(args) == RightSide`), the wrap hides
+	 *  the operand-line overflow from `breakLongOpBoolOperandAtCompare`
+	 *  (which measures the `==` line, not the operand line). Result: ugly
+	 *  `call(\n  args\n) == X` form when `call(args)\n    == X` is cleaner.
+	 *  Try collapsing the call wrap, then break at `==` if still long. */
+	function preferCompareBreakOverInnerCallParamWrap() {
+		var maxLen:Int = config.wrapping.maxLineLength;
+		for (place in wrappingQueue) {
+			if (place.origin != CallParameterWrapping) continue;
+			if (place.start == null || place.end == null) continue;
+			if (!isNewLineAfter(place.start)) continue;
+			var afterClose:Null<TokenInfo> = getNextToken(place.end);
+			if (afterClose == null) continue;
+			var isCompareOp:Bool = switch (afterClose.token.tok) {
+				case Binop(OpEq), Binop(OpNotEq): true;
+				default: false;
+			};
+			if (!isCompareOp) continue;
+			if (isNewLineBefore(afterClose.token)) continue;
+			// Require the `==` to be inside a wrapped paren (condition, expression,
+			//  or any grouping paren). Without a containing wrap there's no
+			//  enclosing line to break — the operand likely stands on its own and
+			//  the compare doesn't gain from being split here.
+			if (!hasWrappedPOpenAncestor(afterClose.token)) continue;
+			stripBreaksBetween(place.start.index, place.end.index);
+			if (calcLineLength(place.start) <= maxLen) {
+				if (calcLineLength(afterClose.token) > maxLen) {
+					lineEndBefore(afterClose.token);
+				}
+				continue;
+			}
+			lineEndBefore(afterClose.token);
+			if (calcLineLength(place.start) <= maxLen) continue;
+			noLineEndBefore(afterClose.token);
+			lineEndAfter(place.start);
+			lineEndBefore(place.end);
+		}
+	}
+
+	function hasWrappedPOpenAncestor(token:TokenTree):Bool {
+		var parent:Null<TokenTree> = token.parent;
+		while (parent != null) {
+			if (parent.tok.match(POpen) && isNewLineAfter(parent)) return true;
+			parent = parent.parent;
+		}
+		return false;
 	}
 
 	/** After conditionWrapping/opBoolChain, an individual `&&`/`||` operand can
