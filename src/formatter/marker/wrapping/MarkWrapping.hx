@@ -484,6 +484,43 @@ class MarkWrapping extends MarkWrappingBase {
 				}
 			}
 			applyWrappingPlace(place);
+			// After opBool wraps, each operand sits on its own continuation line.
+			// calcLineLength's content-only measure undercounts by the indent — an
+			// inner call whose content fits maxLen by itself may still overflow
+			// once the continuation indent is added. Re-apply inner callParameter
+			// fillLineWithLeadingBreak places that were stripped above when the
+			// visual line (indent + content) still exceeds maxLineLength.
+			restoreInnerCallParamsAfterOpBoolWrap(startIdx, endIdx);
+		}
+	}
+
+	/** After opBoolChain wrap added a chain break, restore inner callParameter
+	 *  wraps that were stripped: their operand's continuation line may still
+	 *  visually exceed maxLineLength (calcLineLength ignores indent, so the
+	 *  rule's `exceedsMaxLineLength` underestimates and resolves NoWrap). */
+	function restoreInnerCallParamsAfterOpBoolWrap(startIdx:Int, endIdx:Int) {
+		var maxLen:Int = config.wrapping.maxLineLength;
+		for (place in wrappingQueue) {
+			if (place.origin != CallParameterWrapping) continue;
+			if (place.start == null || place.items == null || place.items.length <= 1) continue;
+			if (place.start.index < startIdx || place.start.index > endIdx) continue;
+			if (isNewLineAfter(place.start)) continue; // still wrapped
+			// Only restore for fillLineWithLeadingBreak — that's the layout the
+			// stripped wrap was originally placing; other defaults (NoWrap,
+			// OnePerLine, ...) need different restoration logic.
+			switch (place.rules.defaultWrap) {
+				case FillLineWithLeadingBreak:
+				case _:
+					continue;
+			}
+			var pClose:Null<TokenTree> = place.end;
+			if (pClose == null) pClose = getCloseToken(place.start);
+			if (pClose == null) continue;
+			var lineStart:Null<TokenTree> = findLineStartToken(place.start);
+			if (lineStart == null) continue;
+			var indent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(lineStart));
+			if (indent + calcLineLength(place.start) <= maxLen) continue; // visual fits
+			wrapFillLineWithLeading2AfterLast(place.start, pClose, place.items, maxLen, 0);
 		}
 	}
 
@@ -2747,17 +2784,54 @@ class MarkWrapping extends MarkWrappingBase {
 		});
 	}
 
-	/** Condition has arrow breaks AND full span exceeds maxLineLength. */
+	/** Condition has inner non-chain breaks (arrow lambda, multi-line call
+	 *  parameter, ...) AND full span exceeds maxLineLength. Without this guard,
+	 *  `tryCollapseBreakBefore` rejoins the operator onto the previous line —
+	 *  it only sees the first physical line (`calcLineLength`), which is short
+	 *  when an inner break ends it early; the visually-overflowed continuation
+	 *  is invisible. */
 	function shouldPreserveChainBreak(token:TokenTree):Bool {
 		for (open in conditionWraps) {
 			var close:Null<TokenTree> = getCloseToken(open);
 			if (close == null) continue;
 			if (token.index <= open.index || token.index >= close.index) continue;
-			if (!hasInnerArrowBreak(open, close)) continue;
+			if (!hasInnerNonChainBreak(open, close)) continue;
 			var condIndent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(open) + 1);
 			if (condIndent + calcSpanLength(open, close) > config.wrapping.maxLineLength) {
 				return true;
 			}
+		}
+		return false;
+	}
+
+	/** A Newline inside (open, close) that is NOT part of a chain break — i.e.
+	 *  not on a chain operator, not on the token immediately preceding one, and
+	 *  not the trailing condition-wrap break before `close`. Catches arrow
+	 *  lambda breaks, callParameter leading breaks, etc. Used to decide whether
+	 *  an opBool/opAdd chain break is still load-bearing when `calcLineLength`
+	 *  would falsely report the joined line as fitting. */
+	function hasInnerNonChainBreak(open:TokenTree, close:TokenTree):Bool {
+		var idx:Int = open.index + 1;
+		while (idx < close.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			if (info.whitespaceAfter != Newline) continue;
+			switch (info.token.tok) {
+				case Binop(OpBoolAnd), Binop(OpBoolOr), Binop(OpAdd), Binop(OpSub):
+					continue;
+				default:
+			}
+			var next:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			if (next != null) {
+				if (next.token.index == close.index) continue;
+				switch (next.token.tok) {
+					case Binop(OpBoolAnd), Binop(OpBoolOr), Binop(OpAdd), Binop(OpSub):
+						continue;
+					default:
+				}
+			}
+			return true;
 		}
 		return false;
 	}
