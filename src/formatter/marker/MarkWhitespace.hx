@@ -643,6 +643,11 @@ class MarkWhitespace extends MarkerBase {
 			switch (prev.token.tok) {
 				case Kwd(KwdReturn), Kwd(KwdThrow):
 					policy = policy.add(Before);
+				case Kwd(KwdIn):
+					// `for (x in (expr))` — keep space after `in` even when expressionParens
+					//  policy says none. Skip for metadata `@in(arg)` where prev-prev is `@`.
+					var prevPrev:Null<TokenInfo> = getPreviousToken(prev.token);
+					if (prevPrev == null || !prevPrev.token.tok.match(At)) policy = policy.add(Before);
 				case Unop(_):
 					policy = policy.remove(Before);
 				case Binop(_), Comment(_):
