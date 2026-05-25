@@ -109,6 +109,7 @@ class MarkWrapping extends MarkWrappingBase {
 		lateDetectTernaries();
 		applyTernaryWrapping();
 		applyArrowWrapping();
+		preferLambdaSignatureInlineOverWrap();
 		applyConditionWrapping();
 		applyExpressionWrapping();
 		collapseChainWraps();
@@ -178,7 +179,8 @@ class MarkWrapping extends MarkWrappingBase {
 				if (next == null) continue;
 				switch (next.token.tok) {
 					case Question | DblDot:
-					case _: hasNonTernaryBreak = true;
+					case _:
+						hasNonTernaryBreak = true;
 				}
 				if (hasNonTernaryBreak) break;
 			}
@@ -191,7 +193,8 @@ class MarkWrapping extends MarkWrappingBase {
 			//  140-col line where a trailing ternary `?` is already wrapped on the
 			//  next line).
 			var headLen:Int = indent + calcSpanLength(lineStart, place.start);
-			var contentLen:Int = indent + config.indentation.tabWidth + calcSpanLength(place.start, pClose) - calcTokenLength(place.start) - calcTokenLength(pClose);
+			var contentLen:Int = indent + config.indentation.tabWidth + calcSpanLength(place.start, pClose) - calcTokenLength(place.start)
+				- calcTokenLength(pClose);
 			var fullCollapsedLen:Int = indent + calcSpanLength(lineStart, pClose);
 			if (fullCollapsedLen <= config.wrapping.maxLineLength) continue;
 			if (headLen > config.wrapping.maxLineLength) continue;
@@ -432,7 +435,8 @@ class MarkWrapping extends MarkWrappingBase {
 			if (sharpIf.parent == null) continue;
 			switch (sharpIf.parent.tok) {
 				case Binop(OpAdd), Binop(OpSub):
-				default: continue;
+				default:
+					continue;
 			}
 			// Walk up to the ancestor that sits directly inside a Block BrOpen — that's
 			// the statement the Sharp lives in. The post-#end chain is kept as a sibling
@@ -541,7 +545,8 @@ class MarkWrapping extends MarkWrappingBase {
 					var prev:Null<TokenInfo> = getPreviousToken(info.token);
 					if (prev != null && (prev.wrapAfter || isNewLineAfter(prev.token))) return true;
 					var next:Null<TokenInfo> = getNextToken(info.token);
-					if (next != null && (next.token.tok.match(CommentLine(_)) || next.token.tok.match(Comment(_)))
+					if (next != null
+						&& (next.token.tok.match(CommentLine(_)) || next.token.tok.match(Comment(_)))
 						&& (next.wrapAfter || next.whitespaceAfter == Newline)) return true;
 				default:
 			}
@@ -1249,8 +1254,8 @@ class MarkWrapping extends MarkWrappingBase {
 		}
 		while (root.parent != null) {
 			switch (root.parent.tok) {
-				case Kwd(KwdPublic), Kwd(KwdPrivate), Kwd(KwdStatic), Kwd(KwdOverride), Kwd(KwdInline), Kwd(KwdDynamic), Kwd(KwdMacro),
-					Kwd(KwdExtern), Kwd(KwdAbstract), Kwd(KwdOverload), At:
+				case Kwd(KwdPublic), Kwd(KwdPrivate), Kwd(KwdStatic), Kwd(KwdOverride), Kwd(KwdInline), Kwd(KwdDynamic), Kwd(KwdMacro), Kwd(KwdExtern),
+					Kwd(KwdAbstract), Kwd(KwdOverload), At:
 					root = root.parent;
 				default:
 					return root;
@@ -2555,6 +2560,123 @@ class MarkWrapping extends MarkWrappingBase {
 			if (headLen > maxLen || paramLen > maxLen || closeLen > maxLen) continue;
 			stripBreaksBetween(place.start.index, pClose.index);
 			wrapFillLineWithLeading2AfterLast(place.start, pClose, place.items, maxLen, 0);
+		}
+	}
+
+	/** Sibling of `preferFunctionSignatureWrapOverInnerParen` for arrow
+	 *  functions used as call arguments. A lambda's `(args) -> body` paren is
+	 *  classified as `Parameter` by `getPOpenType` (trailing `->`), so
+	 *  `wrapFunctionSignature` evaluates rules against `calcLineLength(POpen)`
+	 *  — a span covering the WHOLE arrow expression including body. With a
+	 *  long body the line exceeds maxLineLength → default
+	 *  fillLineWithLeadingBreak splits the params across lines, even when the
+	 *  params themselves fit inline and the body wraps separately.
+	 *
+	 *  When the lambda is the last arg of an enclosing
+	 *  fillLineWithLeadingBreak callParameter wrap, collapse both wraps and
+	 *  force `->` to break (body to next line). The pre-check measures the
+	 *  call head + lambda head + `->` at the outer call's containing indent;
+	 *  if it fits in maxLineLength, the rewrite is safe (block / condition /
+	 *  opBool wraps inside the body keep their own indent). Gate: ArrowFunction
+	 *  (not the Haxe-3/Haxe-4 function-type variants — those are
+	 *  `preferFunctionSignatureWrapOverInnerParen`).
+	 */
+	function preferLambdaSignatureInlineOverWrap() {
+		var maxLen:Int = config.wrapping.maxLineLength;
+		for (place in wrappingQueue) {
+			if (place.origin != FunctionSignatureWrapping) continue;
+			if (place.start == null) continue;
+			if (!isNewLineAfter(place.start)) continue;
+			var pClose:Null<TokenTree> = place.end;
+			if (pClose == null) pClose = getCloseToken(place.start);
+			if (pClose == null) continue;
+			// Lambda `(args)` is tree-attached to the enclosing scope, NOT to its
+			//  trailing `->` (the arrow is the POpen's right-sibling, not its parent).
+			//  Detect by looking at the token directly after `)`.
+			var afterClose:Null<TokenInfo> = getNextToken(pClose);
+			if (afterClose == null) continue;
+			var arrowToken:Null<TokenTree> = switch (afterClose.token.tok) {
+				case Binop(OpArrow), Arrow: afterClose.token;
+				default: null;
+			};
+			if (arrowToken == null) continue;
+			if (TokenTreeCheckUtils.getArrowType(arrowToken) != ArrowFunction) continue;
+			var outerCall:Null<formatter.marker.wrapping.MarkWrappingBase.WrappingPlace> = findEnclosingCallParameterPlace(place.start);
+			if (outerCall == null || outerCall.end == null) continue;
+			if (!isNewLineAfter(outerCall.start)) continue;
+			if (!isLastArgInCall(arrowToken, outerCall.end)) continue;
+			var funcLineStart:Null<TokenTree> = findLineStartToken(outerCall.start);
+			if (funcLineStart == null) continue;
+			var indent:Int = calcLineLengthBefore(funcLineStart);
+			var firstLineLen:Int = indent + calcSpanLength(funcLineStart, arrowToken);
+			if (firstLineLen > maxLen) continue;
+			stripBreaksBetween(place.start.index, pClose.index);
+			stripOuterCallBreaksUpTo(outerCall.start, arrowToken);
+			lineEndAfter(arrowToken);
+		}
+	}
+
+	function findEnclosingCallParameterPlace(token:TokenTree):Null<formatter.marker.wrapping.MarkWrappingBase.WrappingPlace> {
+		for (place in wrappingQueue) {
+			if (place.origin != CallParameterWrapping) continue;
+			if (place.start == null || place.end == null) continue;
+			if (place.start.index < token.index && place.end.index > token.index) {
+				return place;
+			}
+		}
+		return null;
+	}
+
+	function isLastArgInCall(arrowToken:TokenTree, outerEnd:TokenTree):Bool {
+		var idx:Int = arrowToken.index + 1;
+		while (idx < outerEnd.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			if (info == null) {
+				idx++;
+				continue;
+			}
+			switch (info.token.tok) {
+				case POpen, BrOpen, BkOpen:
+					var close:Null<TokenTree> = getCloseToken(info.token);
+					if (close != null) {
+						idx = close.index + 1;
+						continue;
+					}
+					idx++;
+				case Comma:
+					return false;
+				default:
+					idx++;
+			}
+		}
+		return true;
+	}
+
+	function stripOuterCallBreaksUpTo(outerPOpen:TokenTree, until:TokenTree) {
+		var idx:Int = outerPOpen.index;
+		while (idx < until.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			if (info == null) {
+				idx++;
+				continue;
+			}
+			switch (info.token.tok) {
+				case POpen, BrOpen, BkOpen:
+					if (info.token.index == outerPOpen.index) {
+						if (info.whitespaceAfter == Newline) noLineEndAfter(info.token);
+						idx++;
+						continue;
+					}
+					var close:Null<TokenTree> = getCloseToken(info.token);
+					if (close != null && close.index < until.index) {
+						idx = close.index + 1;
+						continue;
+					}
+					idx++;
+				default:
+					if (info.whitespaceAfter == Newline) noLineEndAfter(info.token);
+					idx++;
+			}
 		}
 	}
 
