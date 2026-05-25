@@ -1,5 +1,6 @@
 package formatter.marker.wrapping;
 
+import formatter.config.SameLineConfig;
 import formatter.config.WrapConfig;
 
 class MarkWrapping extends MarkWrappingBase {
@@ -118,6 +119,7 @@ class MarkWrapping extends MarkWrappingBase {
 		preferParenWrapOverSingleArgChainBreak();
 		preferTernaryWrapOverBranchChainBreak();
 		preferFunctionSignatureWrapOverInnerParen();
+		preferChainKwdBodyNextLineOverCallParenWrap();
 		breakLongOpBoolOperandAtCompare();
 		applyParenIndentWrapping();
 		wrapLongCallParamsInChains();
@@ -182,9 +184,15 @@ class MarkWrapping extends MarkWrappingBase {
 			}
 			if (hasNonTernaryBreak) continue;
 			var indent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(lineStart));
-			var headLen:Int = indent + calcSpanLength(lineStart, place.start) + calcTokenLength(place.start);
+			// `calcSpanLength` already INCLUDES both endpoint tokens' text — the prior
+			//  `+ calcTokenLength(...)` on the head/full lines double-counted the
+			//  open/close paren. With the spurious +1, a line of exactly maxLineLength
+			//  was misread as one char over and wrapped unnecessarily (e.g. a
+			//  140-col line where a trailing ternary `?` is already wrapped on the
+			//  next line).
+			var headLen:Int = indent + calcSpanLength(lineStart, place.start);
 			var contentLen:Int = indent + config.indentation.tabWidth + calcSpanLength(place.start, pClose) - calcTokenLength(place.start) - calcTokenLength(pClose);
-			var fullCollapsedLen:Int = indent + calcSpanLength(lineStart, pClose) + calcTokenLength(pClose);
+			var fullCollapsedLen:Int = indent + calcSpanLength(lineStart, pClose);
 			if (fullCollapsedLen <= config.wrapping.maxLineLength) continue;
 			if (headLen > config.wrapping.maxLineLength) continue;
 			if (contentLen > config.wrapping.maxLineLength) continue;
@@ -1032,6 +1040,35 @@ class MarkWrapping extends MarkWrappingBase {
 		// Skip if line exceeds only due to trailing comment — code itself fits
 		if (calcLineLengthNoComment(token) <= config.wrapping.maxLineLength) {
 			return;
+		}
+		// Skip when this condition's `)` is followed by a downstream wrap point AND
+		//  the line UP TO PCLOSE fits — the long part will be shortened by the next
+		//  link's own wrap (chain Kwd, call paren). Without this skip, conditionWrapping
+		//  over-wraps short conditions just because the chained call's args push the
+		//  WHOLE line past maxLineLength. Wrap points after pClose:
+		//   - Kwd(KwdFor|KwdIf|KwdWhile|KwdDo) — chain, next conditionWrapping handles it
+		//   - Ident `(` — call, callParameter handles its args
+		var hasDownstreamWrap:Bool = false;
+		var next:Null<TokenInfo> = getNextToken(pClose);
+		if (next != null) switch (next.token.tok) {
+			case Kwd(KwdFor) | Kwd(KwdIf) | Kwd(KwdWhile) | Kwd(KwdDo):
+				hasDownstreamWrap = true;
+			case Const(CIdent(_)):
+				var afterIdent:Null<TokenInfo> = getNextToken(next.token);
+				if (afterIdent != null && afterIdent.token.tok.match(POpen)) hasDownstreamWrap = true;
+			default:
+		}
+		// Don't skip if condition already has pre-existing method-chain breaks inside —
+		//  `conditionWraps` membership is what `shouldPreserveChainBreak` in
+		//  `collapseChainWraps` uses to keep those breaks; dropping from the list lets the
+		//  chain collapse to one line.
+		if (hasDownstreamWrap && !hasMethodChainBreaks(token.index, pClose.index)) {
+			var lineStart:Null<TokenTree> = findLineStartToken(token);
+			if (lineStart != null) {
+				var indent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(lineStart));
+				var condLineLen:Int = indent + calcSpanLength(lineStart, pClose);
+				if (condLineLen <= config.wrapping.maxLineLength) return;
+			}
 		}
 		var items:Array<WrappableItem> = makeWrappableItems(token);
 		var rule:WrapRule = determineWrapType2(config.wrapping.conditionWrapping, token, items);
@@ -2481,6 +2518,50 @@ class MarkWrapping extends MarkWrappingBase {
 			if (headLen > maxLen || paramLen > maxLen || closeLen > maxLen) continue;
 			stripBreaksBetween(place.start.index, pClose.index);
 			wrapFillLineWithLeading2AfterLast(place.start, pClose, place.items, maxLen, 0);
+		}
+	}
+
+	/** When a call's args were wrapped by `callParameter` but the call is the body
+	 *  of a chain Kwd (for/if/while/do) with a `fitLine` body policy, and the
+	 *  collapsed call would fit on a fresh line at +1 indent, prefer putting the
+	 *  body on the next line over wrapping the call paren. The chained-keyword's
+	 *  body decision was made via `resolveFitLine` at tree-indent, before the
+	 *  call's actual line position (after preceding chain) was known; callParameter
+	 *  then absorbed the overflow. Undoing the call wrap + breaking before the
+	 *  call's Ident restores the fitLine semantics (body inline if fits at +1
+	 *  indent on next line, else next line with args wrapped).
+	 */
+	function preferChainKwdBodyNextLineOverCallParenWrap() {
+		var maxLen:Int = config.wrapping.maxLineLength;
+		for (place in wrappingQueue) {
+			if (place.origin != CallParameterWrapping) continue;
+			if (place.start == null) continue;
+			if (!isNewLineAfter(place.start)) continue;
+			var pClose:Null<TokenTree> = place.end;
+			if (pClose == null) pClose = getCloseToken(place.start);
+			if (pClose == null) continue;
+			var prevInfo:Null<TokenInfo> = getPreviousToken(place.start);
+			if (prevInfo == null) continue;
+			var callIdent:TokenTree = prevInfo.token;
+			if (!callIdent.tok.match(Const(CIdent(_)))) continue;
+			var parent:Null<TokenTree> = callIdent.parent;
+			if (parent == null) continue;
+			var policy:Null<SameLinePolicy> = switch (parent.tok) {
+				case Kwd(KwdFor): config.sameLine.forBody;
+				case Kwd(KwdIf): config.sameLine.ifBody;
+				case Kwd(KwdWhile): config.sameLine.whileBody;
+				default: null;
+			};
+			if (policy != FitLine) continue;
+			if (isNewLineBefore(callIdent)) continue;
+			var chainIndent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(parent));
+			var bodyIndent:Int = chainIndent + config.indentation.tabWidth;
+			// Span ident through close paren — calcSpanLength treats existing newlines as 1 space,
+			//  so this measures the COLLAPSED call. +1 for the trailing `;` (statement body).
+			var collapsedLen:Int = bodyIndent + calcSpanLength(callIdent, pClose) + 1;
+			if (collapsedLen > maxLen) continue;
+			stripBreaksBetween(place.start.index, pClose.index);
+			lineEndBefore(callIdent);
 		}
 	}
 
