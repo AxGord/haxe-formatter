@@ -5,6 +5,7 @@ import formatter.config.WrapConfig;
 
 class MarkWrapping extends MarkWrappingBase {
 	var conditionWraps:Array<TokenTree> = [];
+	var bracketOverflowConditions:Array<TokenTree> = [];
 	var expressionWraps:Array<TokenTree> = [];
 	var parenIndentWraps:Array<TokenTree> = [];
 	var ternaryWraps:Array<{itemStart:TokenTree, question:TokenTree, dblDot:TokenTree}> = [];
@@ -111,6 +112,7 @@ class MarkWrapping extends MarkWrappingBase {
 		applyArrowWrapping();
 		preferLambdaSignatureInlineOverWrap();
 		applyConditionWrapping();
+		applyBracketOverflowConditionWrapping();
 		applyExpressionWrapping();
 		collapseChainWraps();
 		applyAssignmentWrapping();
@@ -1081,6 +1083,23 @@ class MarkWrapping extends MarkWrappingBase {
 		}
 		// Skip if line exceeds only due to trailing comment — code itself fits
 		if (calcLineLengthNoComment(token) <= config.wrapping.maxLineLength) {
+			// Inner array/struct literals that wrapped during the reverse walk
+			// (`applyWrappingPlace`, not the deferred queue) artificially shorten
+			// this line. If the condition has top-level `&&`/`||` operands AND its
+			// full collapsed length still exceeds maxLineLength, queue it for a
+			// late wrap pass that preserves the inner array/struct layout
+			// (`applyConditionWrapping` would strip those breaks via
+			// `reApplyInnerOpBoolChain`).
+			if (hasChainBreaks(token, pClose)) return;
+			if (!hasTopLevelOpBoolOperands(token, pClose)) return;
+			var indent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(token));
+			// calcLineLengthAfter walks past pClose's whitespace — if pClose ends with
+			// a newline (e.g. fitLine moved body to next line) the function measures
+			// the NEXT line's content, which we don't want included.
+			var after:Int = isNewLineAfter(pClose) ? 0 : calcLineLengthAfter(pClose);
+			var collapsedLine:Int = indent + calcLineLengthBefore(token) + calcSpanLength(token, pClose) + after;
+			if (collapsedLine <= config.wrapping.maxLineLength) return;
+			bracketOverflowConditions.push(token);
 			return;
 		}
 		// Skip when this condition's `)` is followed by a downstream wrap point AND
@@ -1117,6 +1136,87 @@ class MarkWrapping extends MarkWrappingBase {
 		if (rule.type != NoWrap && rule.type != Keep) {
 			conditionWraps.push(token);
 		}
+	}
+
+	/** Late post-pass: condition contains an inner array/struct literal that wrapped
+	 *  during the reverse walk, artificially shortening the first line. Going through
+	 *  `applyConditionWrapping` would strip those inner breaks via
+	 *  `reApplyInnerOpBoolChain` (the array would collapse), so we apply a minimal
+	 *  wrap here ourselves: break after `(`, before `)`, and before every top-level
+	 *  `&&`/`||` whose following operand contains a newline (puts the multi-line
+	 *  operand on its own line, while preserving its existing layout). */
+	function applyBracketOverflowConditionWrapping() {
+		for (token in bracketOverflowConditions) {
+			var pClose:Null<TokenTree> = getCloseToken(token);
+			if (pClose == null) continue;
+			if (isNewLineAfter(token)) continue;
+			lineEndAfter(token);
+			lineEndBefore(pClose);
+			var idx:Int = token.index + 1;
+			var depth:Int = 0;
+			while (idx < pClose.index) {
+				var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+				idx++;
+				if (info == null) continue;
+				switch (info.token.tok) {
+					case POpen, BkOpen, BrOpen:
+						depth++;
+					case PClose, BkClose, BrClose:
+						depth--;
+					case Binop(OpBoolAnd), Binop(OpBoolOr):
+						if (depth == 0 && operandHasInnerNewline(info.token, pClose)) {
+							lineEndBefore(info.token);
+						}
+					default:
+				}
+			}
+		}
+	}
+
+	/** True if the operand starting AFTER `op` (up to the next top-level opBool
+	 *  operator OR `condClose`) contains a Newline. Used to detect multi-line
+	 *  operands that should sit on their own line. */
+	function operandHasInnerNewline(op:TokenTree, condClose:TokenTree):Bool {
+		var idx:Int = op.index + 1;
+		var depth:Int = 0;
+		while (idx < condClose.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			switch (info.token.tok) {
+				case POpen, BkOpen, BrOpen:
+					depth++;
+				case PClose, BkClose, BrClose:
+					depth--;
+				case Binop(OpBoolAnd), Binop(OpBoolOr):
+					if (depth == 0) return false;
+				default:
+			}
+			if (info.whitespaceAfter == Newline) return true;
+		}
+		return false;
+	}
+
+	/** True when condition contains a top-level `&&` or `||` (depth-aware: ignores
+	 *  operators inside nested parens/brackets/braces). */
+	function hasTopLevelOpBoolOperands(open:TokenTree, close:TokenTree):Bool {
+		var idx:Int = open.index + 1;
+		var depth:Int = 0;
+		while (idx < close.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			switch (info.token.tok) {
+				case POpen, BkOpen, BrOpen:
+					depth++;
+				case PClose, BkClose, BrClose:
+					depth--;
+				case Binop(OpBoolAnd), Binop(OpBoolOr):
+					if (depth == 0) return true;
+				default:
+			}
+		}
+		return false;
 	}
 
 	/** calcLineLength excluding trailing line comment. */
