@@ -2728,6 +2728,10 @@ class MarkWrapping extends MarkWrappingBase {
 			stripBreaksBetween(place.start.index, pClose.index);
 			stripOuterCallBreaksUpTo(outerCall.start, arrowToken);
 			lineEndAfter(arrowToken);
+			// Place the outer call's closing `)` on its own line. `reEvaluateSingleArgCallParam`
+			//  may have collapsed it (noLineEndBefore) when the line up to lambda POpen
+			//  fit — restore it now that the body sits on its own line.
+			if (!isNewLineBefore(outerCall.end)) lineEndBefore(outerCall.end);
 		}
 	}
 

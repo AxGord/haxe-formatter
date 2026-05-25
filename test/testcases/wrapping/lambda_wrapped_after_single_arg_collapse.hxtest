@@ -101,6 +101,7 @@ class Main {
 class Main {
 	static function test():Void {
 		final localDetectorObj01:LocalAuxDetectorEntity = new LocalAuxDetectorEntity((folder:Bool, dataKey:Int) ->
-			_dataStore_.localItemBank.findDataByDataKey(folder, dataKey, true).filter(p -> !excludedItem.contains(p)));
+			_dataStore_.localItemBank.findDataByDataKey(folder, dataKey, true).filter(p -> !excludedItem.contains(p))
+		);
 	}
 }
