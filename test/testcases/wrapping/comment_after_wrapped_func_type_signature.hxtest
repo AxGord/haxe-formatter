@@ -1,0 +1,55 @@
+{
+	"indentation": {
+		"character": "tab",
+		"tabWidth": 4,
+		"trailingWhitespace": false
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"functionSignature": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "totalItemLength <= n", "value": 100}, {"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}],
+					"type": "noWrap"
+				}
+			]
+		}
+	},
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"whitespace": {
+		"functionTypeHaxe3Policy": "none",
+		"functionTypeHaxe4Policy": "none"
+	}
+}
+
+---
+
+class Main {
+	private abstract function processBatchEntryItemSign():(entryId:Int, routeTo:String, newScopeParentId:Int, temporary:Bool)->Null<LinkResult>;
+
+	// === CONSTRUCTOR ===
+
+	public function new() {}
+}
+
+---
+
+class Main {
+	private abstract function processBatchEntryItemSign():(
+		entryId:Int, routeTo:String, newScopeParentId:Int, temporary:Bool
+	)->Null<LinkResult>;
+
+	// === CONSTRUCTOR ===
+
+	public function new() {}
+}

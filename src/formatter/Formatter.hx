@@ -141,6 +141,7 @@ class Formatter {
 
 			markTokenText.run();
 			fixupAmbiguousBrOpenTypes(parsedCode);
+			reparentMisplacedFieldTrailingComments(parsedCode);
 			markWhitespace.run();
 			markLineEnds.run();
 			markSameLine.run();
@@ -185,6 +186,96 @@ class Formatter {
 			if (inferred == Unknown) continue;
 			brOpen.tokenTypeCache.brOpenType = inferred;
 		}
+	}
+
+	/**
+	 * tokentree 1.2.18 mis-parents standalone trailing comments after an `abstract
+	 *  function name():(args)->Ret;`-style field — the comment ends up as a child
+	 *  of the function name CIdent (deep inside the field subtree) instead of as
+	 *  a sibling of the field in the enclosing class body. Downstream this confuses
+	 *  Indenter (extra +1 indent) and MarkEmptyLines (empty line ends up AFTER the
+	 *  comment instead of between `;` and `//`).
+	 *
+	 *  Walk every comment whose enclosing tree chain reaches a `Kwd(KwdFunction)`/
+	 *  `Kwd(KwdVar)`/`Kwd(KwdFinal)` field BEFORE hitting a `BrOpen` (so comments
+	 *  inside function bodies are excluded), the comment's source index sits AFTER
+	 *  the field's terminating `Semicolon`, and the field's parent is a `BrOpen`.
+	 *  Then move the comment out of the field subtree into the field's parent at
+	 *  the slot right after the field.
+	 */
+	@:access(tokentree.TokenTree)
+	static function reparentMisplacedFieldTrailingComments(parsedCode:ParsedCode):Void {
+		final comments:Array<TokenTree> = parsedCode.root.filterCallback(function(t:TokenTree, i:Int):FilterResult {
+			return switch t.tok {
+				case Comment(_), CommentLine(_): FoundGoDeeper;
+				case _: GoDeeper;
+			}
+		});
+		for (cmt in comments) {
+			if (!parsedCode.isOriginalNewlineBefore(cmt)) continue;
+			var p:Null<TokenTree> = cmt.parent;
+			var fieldKwd:Null<TokenTree> = null;
+			while (p != null && p.tok != Root) {
+				switch (p.tok) {
+					case Kwd(KwdFunction), Kwd(KwdVar), Kwd(KwdFinal):
+						fieldKwd = p;
+						break;
+					case BrOpen:
+						break;
+					default:
+						p = p.parent;
+				}
+			}
+			if (fieldKwd == null) continue;
+			final newParent:Null<TokenTree> = fieldKwd.parent;
+			if (newParent == null) continue;
+			if (!newParent.tok.match(BrOpen)) continue;
+			final fieldSemicolon:Null<TokenTree> = findDeepestSemicolon(fieldKwd, cmt.index);
+			if (fieldSemicolon == null) continue;
+			if (cmt.index <= fieldSemicolon.index) continue;
+			final origParent:Null<TokenTree> = cmt.parent;
+			if (origParent == null || origParent.children == null) continue;
+			if (newParent.children == null) continue;
+			final fieldIdx:Int = newParent.children.indexOf(fieldKwd);
+			if (fieldIdx < 0) continue;
+			origParent.children.remove(cmt);
+			final origPrevSib:Null<TokenTree> = cmt.previousSibling;
+			final origNextSib:Null<TokenTree> = cmt.nextSibling;
+			if (origPrevSib != null) origPrevSib.nextSibling = origNextSib;
+			if (origNextSib != null) origNextSib.previousSibling = origPrevSib;
+			cmt.parent = newParent;
+			// Insert after the field; earlier iterations may already have moved other
+			// trailing comments here — keep them in textual (index) order.
+			var insertAt:Int = fieldIdx + 1;
+			while (insertAt < newParent.children.length) {
+				final sib:TokenTree = newParent.children[insertAt];
+				if (sib.index > cmt.index) break;
+				insertAt++;
+			}
+			newParent.children.insert(insertAt, cmt);
+			final newPrev:TokenTree = newParent.children[insertAt - 1];
+			final newNext:Null<TokenTree> = (insertAt + 1 < newParent.children.length) ? newParent.children[insertAt + 1] : null;
+			cmt.previousSibling = newPrev;
+			cmt.nextSibling = newNext;
+			newPrev.nextSibling = cmt;
+			if (newNext != null) newNext.previousSibling = cmt;
+		}
+	}
+
+	static function findDeepestSemicolon(root:TokenTree, beforeIndex:Int):Null<TokenTree> {
+		var found:Null<TokenTree> = null;
+		function walk(t:TokenTree):Void {
+			if (t.children == null) return;
+			for (c in t.children) {
+				if (c.index >= beforeIndex) continue;
+				if (c.tok.match(Semicolon)) {
+					if (found == null || c.index > found.index) found = c;
+				}
+				walk(c);
+			}
+		}
+		walk(root);
+		return found;
 	}
 
 	static function inferBrOpenTypeFromChildren(token:TokenTree):BrOpenType {
