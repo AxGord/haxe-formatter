@@ -2236,10 +2236,21 @@ class MarkWrapping extends MarkWrappingBase {
 			}
 			// If POpen was moved to its own line by outer wrapping (e.g. opBoolChain),
 			// try to merge it back to the end of the previous line: `... || (\n` style.
+			// Exception: when the previous token is a wrapped condition's `(` — merging back
+			// would undo the structural `if (\n\tfirstOp\n\t&& ...\n) {` break placed by
+			// applyConditionWrapping, producing an asymmetric `if ((firstOp)\n\t&& ...\n) {`
+			// where the first operand glues to `if (` only because it happens to be a POpen.
 			if (isNewLineBefore(token)) {
-				noLineEndBefore(token);
-				if (calcLineLength(token) > config.wrapping.maxLineLength) {
-					lineEndBefore(token); // doesn't fit — restore
+				var prevTok:Null<TokenInfo> = getPreviousToken(token);
+				var prevIsWrappedCondOpen:Bool = prevTok != null
+					&& prevTok.token.tok.match(POpen)
+					&& conditionWraps.indexOf(prevTok.token) >= 0
+					&& isNewLineAfter(prevTok.token);
+				if (!prevIsWrappedCondOpen) {
+					noLineEndBefore(token);
+					if (calcLineLength(token) > config.wrapping.maxLineLength) {
+						lineEndBefore(token); // doesn't fit — restore
+					}
 				}
 			}
 			// Collapse opAdd/opSub chain breaks inside the wrapped parens — expression wrapping handles the content.

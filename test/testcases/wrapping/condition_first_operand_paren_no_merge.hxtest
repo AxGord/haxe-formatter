@@ -1,0 +1,101 @@
+{
+	"indentation": {
+		"tabWidth": 4
+	},
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"opBoolChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "beforeLast"
+				}
+			]
+		},
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		if (a) {
+			if (b) {
+				switch (c) {
+					case d:
+						if (e) {
+							if (xValueAAAA == null || xValueAAAA == SomeEnumABCDEFGH.CONST_ALPHA_BETA_GAMMA_DELTA_EPSILON_OMEGA && other.someField) {
+								doWork();
+							}
+							if ((xValueAAAA == null || xValueAAAA == SomeEnumABCDEFGH.CONST_ALPHA_BETA_GAMMA_DELTA_EPSILON_OMEGA) && other.someField(arg)) {
+								doWork();
+							}
+						}
+				}
+			}
+		}
+	}
+}
+
+---
+
+class Main {
+	function test() {
+		if (a) {
+			if (b) {
+				switch (c) {
+					case d:
+						if (e) {
+							if (
+								xValueAAAA == null || xValueAAAA == SomeEnumABCDEFGH.CONST_ALPHA_BETA_GAMMA_DELTA_EPSILON_OMEGA
+								&& other.someField
+							) {
+								doWork();
+							}
+							if (
+								(xValueAAAA == null || xValueAAAA == SomeEnumABCDEFGH.CONST_ALPHA_BETA_GAMMA_DELTA_EPSILON_OMEGA)
+								&& other.someField(arg)
+							) {
+								doWork();
+							}
+						}
+				}
+			}
+		}
+	}
+}
