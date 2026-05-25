@@ -2874,11 +2874,6 @@ class MarkWrapping extends MarkWrappingBase {
 			};
 			if (!isCompareOp) continue;
 			if (isNewLineBefore(afterClose.token)) continue;
-			// Require the `==` to be inside a wrapped paren (condition, expression,
-			//  or any grouping paren). Without a containing wrap there's no
-			//  enclosing line to break — the operand likely stands on its own and
-			//  the compare doesn't gain from being split here.
-			if (!hasWrappedPOpenAncestor(afterClose.token)) continue;
 			stripBreaksBetween(place.start.index, place.end.index);
 			if (calcLineLength(place.start) <= maxLen) {
 				if (calcLineLength(afterClose.token) > maxLen) {
@@ -2892,15 +2887,6 @@ class MarkWrapping extends MarkWrappingBase {
 			lineEndAfter(place.start);
 			lineEndBefore(place.end);
 		}
-	}
-
-	function hasWrappedPOpenAncestor(token:TokenTree):Bool {
-		var parent:Null<TokenTree> = token.parent;
-		while (parent != null) {
-			if (parent.tok.match(POpen) && isNewLineAfter(parent)) return true;
-			parent = parent.parent;
-		}
-		return false;
 	}
 
 	/** After conditionWrapping/opBoolChain, an individual `&&`/`||` operand can
