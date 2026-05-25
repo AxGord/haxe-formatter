@@ -2686,7 +2686,6 @@ class MarkWrapping extends MarkWrappingBase {
 		for (place in wrappingQueue) {
 			if (place.origin != FunctionSignatureWrapping) continue;
 			if (place.start == null) continue;
-			if (!isNewLineAfter(place.start)) continue;
 			var pClose:Null<TokenTree> = place.end;
 			if (pClose == null) pClose = getCloseToken(place.start);
 			if (pClose == null) continue;
@@ -2704,7 +2703,18 @@ class MarkWrapping extends MarkWrappingBase {
 			var outerCall:Null<formatter.marker.wrapping.MarkWrappingBase.WrappingPlace> = findEnclosingCallParameterPlace(place.start);
 			if (outerCall == null || outerCall.end == null) continue;
 			if (!isNewLineAfter(outerCall.start)) continue;
+			// Fire whether or not the lambda's own `(args)` got a leading break:
+			//  the outer-call wrap shortened the lambda line at apply-time and
+			//  functionSignature may have re-evaluated to NoWrap. We still want
+			//  to undo the outer-call wrap so the lambda head fits inline + `->`
+			//  breaks instead. (See `condition_chain_in_arrow_lambda.hxtest`.)
 			if (!isLastArgInCall(arrowToken, outerCall.end)) continue;
+			// Only fire when the lambda body has its own internal breaks (multi-statement,
+			//  expressionIf chain, opBool chain, etc.). For single-expression bodies that
+			//  fit alongside the lambda head on the wrapped outer-call line, the existing
+			//  outer-call wrap is the preferred form — splitting at `->` just adds noise.
+			//  (See paren_indent_call, condition_wrapping_nested.)
+			if (!hasInnerBreakInRange(arrowToken.index + 1, outerCall.end.index - 1)) continue;
 			var funcLineStart:Null<TokenTree> = findLineStartToken(outerCall.start);
 			if (funcLineStart == null) continue;
 			var indent:Int = calcLineLengthBefore(funcLineStart);
@@ -2750,6 +2760,16 @@ class MarkWrapping extends MarkWrappingBase {
 			}
 		}
 		return true;
+	}
+
+	function hasInnerBreakInRange(startIdx:Int, endIdx:Int):Bool {
+		var idx:Int = startIdx;
+		while (idx < endIdx) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info != null && info.whitespaceAfter == Newline) return true;
+		}
+		return false;
 	}
 
 	function stripOuterCallBreaksUpTo(outerPOpen:TokenTree, until:TokenTree) {
