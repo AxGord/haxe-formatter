@@ -367,6 +367,10 @@ class MarkWrappingBase extends MarkerBase {
 				} else {
 					lineLength += item.firstLineLength;
 				}
+				// Overflow break IS the leading break; subsequent items must pack normally,
+				// not be treated as "first" (which would force a redundant leading break
+				// before the first item that finally fits — breaking fillLine packing).
+				first = false;
 				continue;
 			} else {
 				if (!first) {

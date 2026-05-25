@@ -39,8 +39,7 @@ class Main {
 		var x = new Label(
 			"you are allowed to have" + " " + maxA + " " + "documents and" + " " + maxB + " "
 			+ "archives" + ".",
-			getStyle(),
-			430, 20
+			getStyle(), 430, 20
 		);
 	}
 }
