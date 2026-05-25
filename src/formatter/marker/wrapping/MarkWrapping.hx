@@ -2702,19 +2702,24 @@ class MarkWrapping extends MarkWrappingBase {
 			if (TokenTreeCheckUtils.getArrowType(arrowToken) != ArrowFunction) continue;
 			var outerCall:Null<formatter.marker.wrapping.MarkWrappingBase.WrappingPlace> = findEnclosingCallParameterPlace(place.start);
 			if (outerCall == null || outerCall.end == null) continue;
-			if (!isNewLineAfter(outerCall.start)) continue;
-			// Fire whether or not the lambda's own `(args)` got a leading break:
-			//  the outer-call wrap shortened the lambda line at apply-time and
-			//  functionSignature may have re-evaluated to NoWrap. We still want
-			//  to undo the outer-call wrap so the lambda head fits inline + `->`
-			//  breaks instead. (See `condition_chain_in_arrow_lambda.hxtest`.)
+			if (!isNewLineAfter(outerCall.start) && !isNewLineAfter(place.start)) continue;
 			if (!isLastArgInCall(arrowToken, outerCall.end)) continue;
-			// Only fire when the lambda body has its own internal breaks (multi-statement,
-			//  expressionIf chain, opBool chain, etc.). For single-expression bodies that
-			//  fit alongside the lambda head on the wrapped outer-call line, the existing
-			//  outer-call wrap is the preferred form — splitting at `->` just adds noise.
+			// Skip block-body lambdas `(args) -> { ... }` — the block already handles
+			//  its own multi-line layout (opening brace inline with arrow). Forcing
+			//  an arrow break would push `{` to a new line, an unusual form.
+			var bodyFirst:Null<TokenInfo> = getNextToken(arrowToken);
+			if (bodyFirst != null && bodyFirst.token.tok.match(BrOpen)) continue;
+			// When lambda POpen has its own leading break (functionSignature wrapped),
+			//  flattening it is always beneficial — the multi-line `(args)\n  param\n)`
+			//  form is the noise we want to remove.
+			// When lambda POpen is inline (noWrap) but outer call is wrapped, only fire
+			//  if the body has its own internal breaks (multi-statement, expressionIf
+			//  chain, etc.). Single-expression bodies that fit alongside the lambda head
+			//  on the wrapped outer-call line keep the existing form — splitting at `->`
+			//  for a one-liner body just adds noise.
 			//  (See paren_indent_call, condition_wrapping_nested.)
-			if (!hasInnerBreakInRange(arrowToken.index + 1, outerCall.end.index - 1)) continue;
+			if (!isNewLineAfter(place.start)
+				&& !hasInnerBreakInRange(arrowToken.index + 1, outerCall.end.index - 1)) continue;
 			var funcLineStart:Null<TokenTree> = findLineStartToken(outerCall.start);
 			if (funcLineStart == null) continue;
 			var indent:Int = calcLineLengthBefore(funcLineStart);
