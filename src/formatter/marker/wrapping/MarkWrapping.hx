@@ -1850,10 +1850,13 @@ class MarkWrapping extends MarkWrappingBase {
 			if (forPOpen == null) continue;
 			var forPClose:Null<TokenTree> = getCloseToken(forPOpen);
 			if (forPClose == null) continue;
-			// Collect Newlines inside the body span (forPClose, bkClose). A `Semicolon`
-			// or `macro { ... }` block body marks a multi-statement layout we mustn't
-			// flatten; `$p{...}` / `${...}` interpolation BrOpens are tagged Unknown
-			// and have no Semicolons, so they pass the gate naturally.
+			// Inspect the body span (forPClose, bkClose). Skip if it contains a
+			// `Semicolon` (multi-statement block — collapse would merge stmts onto
+			// one line). Collect Newlines AND soft `wrapAfter` markers — at this
+			// point `MarkSameLine` may have placed only soft wraps (fitLine policies
+			// resolved to `Same` set `wrapAfter` on the prev token, hardened by
+			// `lines.applyWrapping` later when the line overflows). Treat both as
+			// "element will be multi-line at emit time".
 			var bodyNewlineTokens:Array<TokenTree> = [];
 			var bodyHasSemicolon:Bool = false;
 			var bi:Int = forPClose.index + 1;
@@ -1864,8 +1867,19 @@ class MarkWrapping extends MarkWrappingBase {
 				if (info.token.tok.match(Semicolon)) bodyHasSemicolon = true;
 				if (info.whitespaceAfter == Newline) bodyNewlineTokens.push(info.token);
 			}
-			if (bodyNewlineTokens.length == 0) continue;
 			if (bodyHasSemicolon) continue;
+			// If no HARD newlines, check whether the comprehension's collapsed line
+			// would exceed maxLen (= a soft wrap will fire at emit). Use the
+			// span from the comprehension's line start to bkClose, plus a small
+			// suffix check via `calcLineLength(bkClose)` to include any trailing
+			// chain (`.concat(`, `.join(...)`, etc.).
+			if (bodyNewlineTokens.length == 0) {
+				var lineStart:Null<TokenTree> = findLineStartToken(bkOpen);
+				if (lineStart == null) continue;
+				var indentL:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(lineStart));
+				var collapsedLen:Int = indentL + calcSpanLength(lineStart, bkClose);
+				if (collapsedLen <= maxLen) continue;
+			}
 			// Try swap: break after forPClose (= before body), break before bkClose,
 			// collapse all inner body newlines.
 			var savedAfterForPClose:Bool = isNewLineAfter(forPClose);
