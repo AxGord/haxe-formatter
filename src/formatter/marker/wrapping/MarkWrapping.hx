@@ -114,6 +114,7 @@ class MarkWrapping extends MarkWrappingBase {
 		applyConditionWrapping();
 		applyBracketOverflowConditionWrapping();
 		applyExpressionWrapping();
+		reEvaluateMultiArgCallParamAfterContextWraps();
 		collapseChainWraps();
 		applyAssignmentWrapping();
 		applyExtendsWrapping();
@@ -498,6 +499,52 @@ class MarkWrapping extends MarkWrappingBase {
 			// fillLineWithLeadingBreak places that were stripped above when the
 			// visual line (indent + content) still exceeds maxLineLength.
 			restoreInnerCallParamsAfterOpBoolWrap(startIdx, endIdx);
+		}
+	}
+
+	/** After ternary/expression-paren wraps shorten the line, re-try collapsing
+	 *  multi-arg callParameter wraps whose `noWrap` rule would now fire. At the
+	 *  earlier `reEvaluateSingleArgCallParam` pass the surrounding context is
+	 *  still on one collapsed line — the call appears to overflow even when the
+	 *  call alone fits. After `applyTernaryWrapping` + `applyExpressionWrapping`
+	 *  put `?/:` and outer `(`/`)` on their own lines, the call's physical line
+	 *  is short enough to honor the rule's `exceedsMaxLineLength: 0 → noWrap`.
+	 *  Same class as `formatter-callparam-futile-revert`: an apply-time decision
+	 *  used a stale measurement vs. a not-yet-applied outer wrap. */
+	function reEvaluateMultiArgCallParamAfterContextWraps() {
+		for (place in wrappingQueue) {
+			if (place.origin != CallParameterWrapping) continue;
+			if (place.start == null || place.items == null || place.items.length < 2) continue;
+			var pClose:Null<TokenTree> = place.end;
+			if (pClose == null) pClose = getCloseToken(place.start);
+			if (pClose == null) continue;
+			if (!isNewLineAfter(place.start)) continue;
+			var hadPCloseBreak:Bool = isNewLineBefore(pClose);
+			noLineEndAfter(place.start);
+			if (hadPCloseBreak) noLineEndBefore(pClose);
+			// Bail if there are inner breaks (multi-line items) — collapsing them
+			// would lose intentional structure (opAdd chains, inner calls, etc.).
+			var hasInnerBreaks:Bool = false;
+			var ri:Int = place.start.index + 1;
+			while (ri < pClose.index) {
+				var rInfo:Null<TokenInfo> = parsedCode.tokenList.tokens[ri];
+				ri++;
+				if (rInfo != null && rInfo.whitespaceAfter == Newline) {
+					hasInnerBreaks = true;
+					break;
+				}
+			}
+			var keepCollapsed:Bool = false;
+			if (!hasInnerBreaks && calcLineLength(place.start) <= config.wrapping.maxLineLength) {
+				// Honor the rule: collapse only when re-evaluation now resolves to NoWrap.
+				// Other resolutions (fillLine, onePerLine) mean the user/rule wants a wrap.
+				var rule:WrapRule = determineWrapType2(place.rules, place.start, place.items);
+				if (rule.type == NoWrap) keepCollapsed = true;
+			}
+			if (!keepCollapsed) {
+				lineEndAfter(place.start);
+				if (hadPCloseBreak) lineEndBefore(pClose);
+			}
 		}
 	}
 
