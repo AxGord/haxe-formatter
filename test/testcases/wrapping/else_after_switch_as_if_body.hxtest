@@ -1,0 +1,53 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140
+	},
+	"sameLine": {
+		"ifBody": "fitLine",
+		"forBody": "fitLine",
+		"whileBody": "fitLine",
+		"functionBody": "fitLine",
+		"expressionIf": "next"
+	}
+}
+
+---
+
+class C {
+	function f() {
+		for (x in xs) {
+			final xmlName:String = if (cond && longerCondition() && evenMoreCondition() && morePadding)
+				switch expr {
+					case A: s;
+					case _:
+						sideEffect();
+						continue;
+				} else
+				fallback;
+		}
+	}
+}
+
+---
+
+class C {
+	function f() {
+		for (x in xs) {
+			final xmlName:String = if (cond && longerCondition() && evenMoreCondition() && morePadding)
+				switch expr {
+					case A: s;
+					case _:
+						sideEffect();
+						continue;
+				}
+			else
+				fallback;
+		}
+	}
+}

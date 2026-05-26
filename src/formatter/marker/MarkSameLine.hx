@@ -278,7 +278,15 @@ class MarkSameLine extends MarkerBase {
 					lineEndBefore(token);
 					var prev:Null<TokenInfo> = getPreviousToken(token);
 					if (prev != null && prev.token.tok.match(BrClose) && TokenTreeCheckUtils.getBrOpenType(prev.token.parent) != ObjectDecl) {
-						applySameLinePolicyChained(token, config.sameLine.ifBody, config.sameLine.ifElse);
+						// Only glue `else` to `}` when the `}` closes the if-body BLOCK
+						// (`{}` directly under KwdIf). Inner block-likes (e.g. `switch`
+						// as if-body, anon types) end with `}` too but their close is NOT
+						// the if-body's brace — gluing `else` there hangs the else-body
+						// at `}`-line indent instead of +1 from `else`'s indent.
+						var brOpenParent:Null<TokenTree> = prev.token.access().parent().matches(BrOpen).parent().token;
+						if (brOpenParent != null && brOpenParent.tok.match(Kwd(KwdIf))) {
+							applySameLinePolicyChained(token, config.sameLine.ifBody, config.sameLine.ifElse);
+						}
 					}
 					return;
 				case FitLine:
