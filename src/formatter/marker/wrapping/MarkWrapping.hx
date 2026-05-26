@@ -130,6 +130,7 @@ class MarkWrapping extends MarkWrappingBase {
 		wrapLongCallParamsInChains();
 		applyAssignmentTypeParamCollapse();
 		wrapLongCollapsedSingleArgCall();
+		preferComprehensionWrapOverElementSplit();
 	}
 
 	/**
@@ -1709,6 +1710,98 @@ class MarkWrapping extends MarkWrappingBase {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Late post-pass: when a `[for (loop) <element>]` comprehension stays glued
+	 * (`comprehensionFor: fitLine`) but its `<element>` was split by an inner
+	 * pass (`expressionIf: next` placing the `if`-body on a new line; nested call
+	 * paren wrap; etc.), prefer the alternative layout `[ for (loop)\n\t<element
+	 * on one line>\n]` when it fits. The inner split is a worse readability
+	 * choice than wrapping the comprehension brackets — the element's identity
+	 * is more visible on a single line at one consistent indent.
+	 *
+	 * Guarded against expression-block bodies and multi-statement bodies (any
+	 * `Semicolon` or extra `BrOpen` inside the body → skip; collapsing those
+	 * newlines would merge statements onto one line).
+	 */
+	function preferComprehensionWrapOverElementSplit() {
+		var maxLen:Int = config.wrapping.maxLineLength;
+		var bkOpens:Array<TokenTree> = parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
+			return token.tok.match(BkOpen) ? FoundGoDeeper : GoDeeper;
+		});
+		for (bkOpen in bkOpens) {
+			var bkClose:Null<TokenTree> = getCloseToken(bkOpen);
+			if (bkClose == null) continue;
+			if (isNewLineAfter(bkOpen)) continue;
+			// Must be `[for ...]` — first non-comment child is `for`.
+			var firstChild:Null<TokenInfo> = getNextToken(bkOpen);
+			if (firstChild == null) continue;
+			if (!firstChild.token.tok.match(Kwd(KwdFor))) continue;
+			var forKw:TokenTree = firstChild.token;
+			var forPOpen:Null<TokenTree> = null;
+			if (forKw.children != null) for (c in forKw.children) {
+				if (c.tok.match(POpen)) { forPOpen = c; break; }
+			}
+			if (forPOpen == null) continue;
+			var forPClose:Null<TokenTree> = getCloseToken(forPOpen);
+			if (forPClose == null) continue;
+			// Collect Newlines inside the body span (forPClose, bkClose). A `Semicolon`
+			// or `macro { ... }` block body marks a multi-statement layout we mustn't
+			// flatten; `$p{...}` / `${...}` interpolation BrOpens are tagged Unknown
+			// and have no Semicolons, so they pass the gate naturally.
+			var bodyNewlineTokens:Array<TokenTree> = [];
+			var bodyHasSemicolon:Bool = false;
+			var bi:Int = forPClose.index + 1;
+			while (bi < bkClose.index) {
+				var info:Null<TokenInfo> = parsedCode.tokenList.tokens[bi];
+				bi++;
+				if (info == null) continue;
+				if (info.token.tok.match(Semicolon)) bodyHasSemicolon = true;
+				if (info.whitespaceAfter == Newline) bodyNewlineTokens.push(info.token);
+			}
+			if (bodyNewlineTokens.length == 0) continue;
+			if (bodyHasSemicolon) continue;
+			// Try swap: break after forPClose (= before body), break before bkClose,
+			// collapse all inner body newlines.
+			var savedAfterForPClose:Bool = isNewLineAfter(forPClose);
+			var savedBeforeBkClose:Bool = isNewLineBefore(bkClose);
+			lineEndAfter(forPClose);
+			lineEndBefore(bkClose);
+			// The Newline we just placed before bkClose lives on bkClose.previousSibling
+			// in the tokens array; don't strip it.
+			var preservedBkClosePrev:Int = bkClose.index - 1;
+			for (nlTok in bodyNewlineTokens) {
+				if (nlTok.index == forPClose.index) continue;
+				if (nlTok.index == preservedBkClosePrev) continue;
+				noLineEndAfter(nlTok);
+			}
+			// Measure: opener line (containing forPClose), body line (first token after
+			// forPClose), closer line (bkClose). Each must fit indent + content ≤ maxLen.
+			var bodyStart:Null<TokenInfo> = getNextToken(forPClose);
+			var bodyStartTok:Null<TokenTree> = bodyStart != null ? bodyStart.token : null;
+			var openerStart:Null<TokenTree> = findLineStartToken(bkOpen);
+			var openerIndent:Int = openerStart != null
+				? indenter.calcAbsoluteIndent(indenter.calcIndent(openerStart))
+				: 0;
+			var openerLen:Int = openerIndent + calcLineLength(forPClose);
+			var closerIndent:Int = openerIndent;
+			var closerLen:Int = closerIndent + calcLineLength(bkClose);
+			var bodyLen:Int = bodyStartTok != null
+				? indenter.calcAbsoluteIndent(indenter.calcIndent(bodyStartTok)) + calcLineLength(bodyStartTok)
+				: 0;
+			var fits:Bool = openerLen <= maxLen && bodyLen <= maxLen && closerLen <= maxLen;
+			if (!fits) {
+				// Restore everything we touched.
+				if (!savedAfterForPClose) noLineEndAfter(forPClose);
+				if (!savedBeforeBkClose) noLineEndBefore(bkClose);
+				for (nlTok in bodyNewlineTokens) {
+					if (nlTok.index == forPClose.index) continue;
+					if (nlTok.index == preservedBkClosePrev) continue;
+					lineEndAfter(nlTok);
+				}
+			}
+		}
 	}
 
 	function applyParenIndentWrapping() {

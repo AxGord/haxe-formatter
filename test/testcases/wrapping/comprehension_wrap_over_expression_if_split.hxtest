@@ -1,0 +1,37 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140
+	},
+	"sameLine": {
+		"ifBody": "fitLine",
+		"forBody": "fitLine",
+		"whileBody": "fitLine",
+		"functionBody": "fitLine",
+		"expressionIf": "next",
+		"comprehensionFor": "fitLine"
+	}
+}
+
+---
+
+class C {
+	private static function assembleItems():Void {
+		final exprs:Array<Expr> = [ for (d in dataItems) macro if ($p{['origin', d.label]} != null) $p{[d.label]} = $p{['origin', d.label]} ];
+	}
+}
+
+---
+
+class C {
+	private static function assembleItems():Void {
+		final exprs:Array<Expr> = [ for (d in dataItems)
+			macro if ($p{['origin', d.label]} != null) $p{[d.label]} = $p{['origin', d.label]}
+		];
+	}
+}
