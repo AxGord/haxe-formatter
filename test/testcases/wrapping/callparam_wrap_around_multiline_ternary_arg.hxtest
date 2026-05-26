@@ -1,0 +1,51 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}],
+					"type": "noWrap"
+				}
+			]
+		}
+	},
+	"sameLine": {
+		"ifBody": "fitLine",
+		"forBody": "fitLine",
+		"whileBody": "fitLine",
+		"functionBody": "fitLine",
+		"expressionIf": "next"
+	}
+}
+
+---
+
+class C {
+	function f() {
+		dispatchEvent(responseCode == 403 ? new SecurityErrorEvent(SecurityErrorEvent.SECURITY_ERROR, text) : new IOErrorEvent(IOErrorEvent.IO_ERROR, text));
+	}
+}
+
+---
+
+class C {
+	function f() {
+		dispatchEvent(
+			responseCode == 403
+				? new SecurityErrorEvent(SecurityErrorEvent.SECURITY_ERROR, text)
+				: new IOErrorEvent(IOErrorEvent.IO_ERROR, text)
+		);
+	}
+}

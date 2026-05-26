@@ -130,6 +130,7 @@ class MarkWrapping extends MarkWrappingBase {
 		wrapLongCallParamsInChains();
 		applyAssignmentTypeParamCollapse();
 		wrapLongCollapsedSingleArgCall();
+		wrapCallParenAroundMultilineTernaryArg();
 		preferComprehensionWrapOverElementSplit();
 	}
 
@@ -1710,6 +1711,109 @@ class MarkWrapping extends MarkWrappingBase {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Sibling of `wrapLongCollapsedSingleArgCall` for the no-assignment case:
+	 * a statement-level call (or any call without an assignment in its line head)
+	 * whose single arg is a multi-line ternary `cond ? a : b` ends up with `cond`
+	 * glued to the call's `(` and `?`/`:` on their own lines, while `);` clings
+	 * to the `:`-branch's closer — leaving the call paren wrap implicit and the
+	 * closer hanging. Prefer the canonical fillLineWithLeadingBreak shape: open
+	 * paren on its own line, ternary inside at +1 indent, closer paren on its
+	 * own line. The existing pass requires `=` in the line head and that the arg
+	 * be COLLAPSIBLE to one line (`stripBreaksBetween`); we KEEP the ternary
+	 * breaks and just wrap the call paren around them.
+	 */
+	function wrapCallParenAroundMultilineTernaryArg() {
+		var maxLen:Int = config.wrapping.maxLineLength;
+		for (place in wrappingQueue) {
+			if (place.origin != CallParameterWrapping) continue;
+			if (place.items == null || place.items.length != 1) continue;
+			if (place.start == null) continue;
+			if (isNewLineAfter(place.start)) continue;
+			var pClose:Null<TokenTree> = place.end;
+			if (pClose == null) pClose = getCloseToken(place.start);
+			if (pClose == null) continue;
+			// Body must have at least one Newline AND all newlines must be ternary
+			// `?`/`:`. opAdd/opBool chain breaks, multi-arg call commas (nested), etc.
+			// are out of scope — they have their own coordinated wrap logic.
+			// Collect the `?`/`:` tokens so we can bump their indent for the
+			// "inside wrapped call" layout (+1 from the now-deeper cond line).
+			var hasAnyBreak:Bool = false;
+			var hasNonTernaryBreak:Bool = false;
+			var ternaryOps:Array<TokenTree> = [];
+			var ti:Int = place.start.index + 1;
+			while (ti < pClose.index) {
+				var tinfo:Null<TokenInfo> = parsedCode.tokenList.tokens[ti];
+				ti++;
+				if (tinfo == null) continue;
+				if (tinfo.whitespaceAfter != Newline) continue;
+				hasAnyBreak = true;
+				var next:Null<TokenInfo> = parsedCode.tokenList.tokens[ti];
+				if (next == null) { hasNonTernaryBreak = true; break; }
+				switch (next.token.tok) {
+					case Question | DblDot:
+						ternaryOps.push(next.token);
+					case _:
+						hasNonTernaryBreak = true;
+				}
+				if (hasNonTernaryBreak) break;
+			}
+			if (!hasAnyBreak || hasNonTernaryBreak) continue;
+			// Speculatively wrap and measure every resulting physical line inside
+			// the paren span. Restore on overflow.
+			lineEndAfter(place.start);
+			lineEndBefore(pClose);
+			// Bump `?`/`:` indent by 1 — applyTernaryWrapping computed their indent
+			// against the un-wrapped cond line; after our wrap, cond is +1 deeper.
+			var savedTernaryIndent:Array<Null<Int>> = [];
+			for (op in ternaryOps) {
+				var info:Null<TokenInfo> = parsedCode.tokenList.tokens[op.index];
+				savedTernaryIndent.push(info != null ? info.additionalIndent : null);
+				additionalIndent(op, 1);
+			}
+			var ok:Bool = true;
+			var headStart:Null<TokenTree> = findLineStartToken(place.start);
+			if (headStart != null) {
+				var headIndent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(headStart));
+				if (headIndent + calcLineLength(place.start) > maxLen) ok = false;
+			}
+			if (ok) {
+				var bodyStart:Null<TokenInfo> = getNextToken(place.start);
+				var lineTok:Null<TokenTree> = bodyStart != null ? bodyStart.token : null;
+				while (ok && lineTok != null && lineTok.index < pClose.index) {
+					var lineLen:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(lineTok)) + calcLineLength(lineTok);
+					if (lineLen > maxLen) { ok = false; break; }
+					var ni:Int = lineTok.index;
+					var nextLine:Null<TokenTree> = null;
+					while (ni < pClose.index) {
+						var info:Null<TokenInfo> = parsedCode.tokenList.tokens[ni];
+						ni++;
+						if (info == null) continue;
+						if (info.whitespaceAfter == Newline) {
+							var afterNl:Null<TokenInfo> = parsedCode.tokenList.tokens[ni];
+							if (afterNl != null) nextLine = afterNl.token;
+							break;
+						}
+					}
+					lineTok = nextLine;
+				}
+			}
+			if (ok) {
+				var closerIndent:Int = headStart != null
+					? indenter.calcAbsoluteIndent(indenter.calcIndent(headStart))
+					: 0;
+				if (closerIndent + calcLineLength(pClose) > maxLen) ok = false;
+			}
+			if (!ok) {
+				noLineEndAfter(place.start);
+				noLineEndBefore(pClose);
+				for (i in 0...ternaryOps.length) {
+					additionalIndent(ternaryOps[i], savedTernaryIndent[i]);
+				}
+			}
+		}
 	}
 
 	/**
