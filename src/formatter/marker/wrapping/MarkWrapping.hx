@@ -115,6 +115,7 @@ class MarkWrapping extends MarkWrappingBase {
 		applyBracketOverflowConditionWrapping();
 		applyExpressionWrapping();
 		reEvaluateMultiArgCallParamAfterContextWraps();
+		breakNestedOpBoolOperandOverflow();
 		collapseChainWraps();
 		applyAssignmentWrapping();
 		applyExtendsWrapping();
@@ -546,6 +547,31 @@ class MarkWrapping extends MarkWrappingBase {
 			if (!keepCollapsed) {
 				lineEndAfter(place.start);
 				if (hadPCloseBreak) lineEndBefore(pClose);
+			}
+		}
+	}
+
+	/** Inner opBool chains are fill-wrapped (applyWrappingQueue) before the enclosing
+	 *  condition/expression wrap finalizes the operands' indent. The inner fill therefore
+	 *  measures its operand lines one indent level short, so a packed trailing operand can
+	 *  end up on a line that exceeds maxLineLength once the outer indent lands. By this pass
+	 *  calcLineLength reflects the final indent — re-check each still-packed operand and break
+	 *  before its operator when its line overflows. Only fires on genuine overflow, so chains
+	 *  the fill already laid out within maxLineLength are left untouched. */
+	function breakNestedOpBoolOperandOverflow() {
+		var maxLen:Int = config.wrapping.maxLineLength;
+		for (place in wrappingQueue) {
+			if (place.origin != OpBoolChainWrapping) continue;
+			if (place.items == null || place.items.length < 2) continue;
+			for (i in 1...place.items.length) {
+				var item:WrappableItem = place.items[i];
+				var prevInfo:Null<TokenInfo> = getPreviousToken(item.first);
+				if (prevInfo == null) continue;
+				// Already broken before this operator — nothing is packed here.
+				if (isNewLineBefore(prevInfo.token)) continue;
+				if (calcLineLength(item.last) <= maxLen) continue;
+				lineEndBefore(prevInfo.token);
+				additionalIndent(prevInfo.token, 0);
 			}
 		}
 	}
@@ -1327,7 +1353,41 @@ class MarkWrapping extends MarkWrappingBase {
 		var rule:WrapRule = determineWrapType2(config.wrapping.expressionWrapping, token, items);
 		if (rule.type != NoWrap && rule.type != Keep) {
 			expressionWraps.push(token);
+		} else if (hasTopLevelForcedBreak(token, pClose)) {
+			// A top-level line comment after `(` (e.g. `( // note`) forces the content onto
+			// its own lines, so `calcLineLength` sees only the short `(`-line and resolves
+			// NoWrap. The paren is still multi-line, so its `)` must go on its own line —
+			// register it for wrapping anyway.
+			expressionWraps.push(token);
 		}
+	}
+
+	/** True when a top-level token between open and close ends its line (forced break,
+	 *  e.g. a line comment), making the paren content span multiple lines. Breaks inside
+	 *  nested parens/brackets/braces are skipped. */
+	function hasTopLevelForcedBreak(open:TokenTree, close:TokenTree):Bool {
+		var idx:Int = open.index + 1;
+		while (idx < close.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			if (info == null) {
+				idx++;
+				continue;
+			}
+			switch (info.token.tok) {
+				case POpen, BrOpen, BkOpen:
+					var nestedClose:Null<TokenTree> = getCloseToken(info.token);
+					if (nestedClose != null) {
+						idx = nestedClose.index + 1;
+						continue;
+					}
+				case _:
+			}
+			if (info.whitespaceAfter == Newline) {
+				return true;
+			}
+			idx++;
+		}
+		return false;
 	}
 
 	/** Sum token text lengths + spaces from start to end (inclusive), ignoring newlines. */
@@ -2430,7 +2490,13 @@ class MarkWrapping extends MarkWrappingBase {
 					continue;
 				}
 			}
-			lineEndAfter(token);
+			// Don't force a break after `(` when a trailing line comment already ends
+			// that line (`( // note`) — the content is on its own lines anyway, and the
+			// break would push the comment off the `(` line onto its own.
+			var afterOpen:Null<TokenInfo> = getNextToken(token);
+			if (afterOpen == null || !afterOpen.token.tok.match(CommentLine(_))) {
+				lineEndAfter(token);
+			}
 			// Skip lineEndBefore(pClose) when content ends with a block —
 			// `}))` should stay on one line, not become `}\n))`.
 			if (!endsWithBrClose(pClose)) {
@@ -2438,9 +2504,20 @@ class MarkWrapping extends MarkWrappingBase {
 			}
 			// If PClose is followed by another PClose with its own break
 			// (from callParameter wrapping), merge them — keep `));` together.
+			// Exception: a wrapped condition's closing `)` (`if (\n ... \n) {`) — its break was
+			// placed structurally by applyConditionWrapping, so the inner expression paren's
+			// close stays on its own line above it instead of gluing into `))`.
 			var nextAfterPClose:Null<TokenInfo> = getNextToken(pClose);
 			if (nextAfterPClose != null && nextAfterPClose.token.tok.match(PClose) && isNewLineBefore(nextAfterPClose.token)) {
-				noLineEndBefore(nextAfterPClose.token);
+				var outerOpen:Null<TokenTree> = nextAfterPClose.token.parent;
+				var isWrappedConditionClose:Bool = outerOpen != null && outerOpen.tok.match(POpen) && isNewLineAfter(outerOpen)
+					&& switch (TokenTreeCheckUtils.getPOpenType(outerOpen)) {
+						case IfCondition | WhileCondition | SwitchCondition | ForLoop: true;
+						case _: false;
+					};
+				if (!isWrappedConditionClose) {
+					noLineEndBefore(nextAfterPClose.token);
+				}
 			}
 			// Try to keep the first chunk of content on the POpen line:
 			// `return (mediumBtn.selected` instead of `return (\n\tmediumBtn.selected`.
@@ -3153,8 +3230,16 @@ class MarkWrapping extends MarkWrappingBase {
 			lineEndBefore(afterClose.token);
 			if (calcLineLength(place.start) <= maxLen) continue;
 			noLineEndBefore(afterClose.token);
-			lineEndAfter(place.start);
-			lineEndBefore(place.end);
+			// Neither collapsing nor a compare break fits — restore the call wrap.
+			// For multi-arg calls re-run the fill so each arg is re-broken; just
+			// re-adding the paren breaks would leave every arg packed on one line
+			// (the fill breaks were dropped by stripBreaksBetween above).
+			if (place.items != null && place.items.length > 1) {
+				wrapFillLineWithLeading2AfterLast(place.start, place.end, place.items, maxLen, 0);
+			} else {
+				lineEndAfter(place.start);
+				lineEndBefore(place.end);
+			}
 		}
 	}
 

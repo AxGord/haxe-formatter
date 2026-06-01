@@ -69,12 +69,12 @@
 
 class Main {
 	static function test():Void {
-		if (
-			!actionItem.folder && timeKey > actionItem.timeKey && (
-				timeKey != actionTimeKey
-				|| _someContainer_.localItemBankExt.findLastActionAndDataForItem(actionItem.filePath, true) == LongTypeActionKindEnum.ACTION_LOCAL_DATA_UPDATE_X1
-			)) {
-			doX();
+		switch (kind) {
+			case DELETED:
+				if (!actionItem.folder && timeKey > actionItem.timeKey && ( // locallyModified
+					timeKey != actionTimeKey || _someContainer_.localItemBankExt.findLastActionAndDataForItem(actionItem.filePath, true) == LongTypeActionKindEnum.ACTION_LOCAL_DATA_UPDATE_X1)) {
+					doX();
+				}
 		}
 	}
 }
@@ -83,14 +83,18 @@ class Main {
 
 class Main {
 	static function test():Void {
-		if (
-			!actionItem.folder && timeKey > actionItem.timeKey && (
-				timeKey != actionTimeKey
-				|| _someContainer_.localItemBankExt.findLastActionAndDataForItem(actionItem.filePath, true)
-					== LongTypeActionKindEnum.ACTION_LOCAL_DATA_UPDATE_X1
-			)
-		) {
-			doX();
+		switch (kind) {
+			case DELETED:
+				if (
+					!actionItem.folder && timeKey > actionItem.timeKey
+					&& ( // locallyModified
+						timeKey != actionTimeKey
+						|| _someContainer_.localItemBankExt.findLastActionAndDataForItem(actionItem.filePath, true)
+							== LongTypeActionKindEnum.ACTION_LOCAL_DATA_UPDATE_X1
+					)
+				) {
+					doX();
+				}
 		}
 	}
 }

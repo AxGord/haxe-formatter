@@ -1,0 +1,86 @@
+{
+	"indentation": {
+		"tabWidth": 4
+	},
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"opBoolChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{
+					"conditions": [{"cond": "itemCount <= n", "value": 3}, {"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "totalItemLength <= n", "value": 120}, {"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				},
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}],
+					"type": "fillLine",
+					"location": "beforeLast"
+				}
+			]
+		},
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	},
+	"sameLine": {
+		"ifBody": "next",
+		"forBody": "next"
+	}
+}
+
+---
+
+class C {
+	private function isMatch(itemPath:String, folder:Bool):Bool {
+		for (linkRecord in records) {
+			if (!folder && linkRecord.folder && (itemPath.startsWith(linkRecord.itemPath + '/') || itemPath.startsWith(linkRecord.itemPathRelocated + '/') || itemPath.startsWith(linkRecord.itemPathRelocatedOrigin + '/'))) {
+				return true;
+			}
+		}
+		return false;
+	}
+}
+
+---
+
+class C {
+	private function isMatch(itemPath:String, folder:Bool):Bool {
+		for (linkRecord in records) {
+			if (
+				!folder && linkRecord.folder && (
+					itemPath.startsWith(linkRecord.itemPath + '/')
+					|| itemPath.startsWith(linkRecord.itemPathRelocated + '/')
+					|| itemPath.startsWith(linkRecord.itemPathRelocatedOrigin + '/')
+				)
+			) {
+				return true;
+			}
+		}
+		return false;
+	}
+}
