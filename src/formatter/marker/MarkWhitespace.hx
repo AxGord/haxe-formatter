@@ -162,7 +162,13 @@ class MarkWhitespace extends MarkerBase {
 							policy = policy.add(Before);
 						case Call | Expression:
 					}
-				case Question | DblDot:
+				case Question:
+					// Only a ternary `?` wants a space before a following `(` (`cond ? (a) : (b)`).
+					// An optional-param marker `?(Type->Void)` must stay glued: `?(`.
+					if (TokenTreeCheckUtils.isTernary(prev.token)) {
+						policy = policy.add(Before);
+					}
+				case DblDot:
 					policy = policy.add(Before);
 				default:
 			}

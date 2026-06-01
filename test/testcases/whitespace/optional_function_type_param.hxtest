@@ -1,0 +1,23 @@
+{
+	"whitespace": {
+		"functionTypeHaxe3Policy": "none",
+		"functionTypeHaxe4Policy": "none"
+	}
+}
+
+---
+
+class T {
+	var a:(Int, ?(String->Void))->Void;
+	var b:(?(String->Void))->Void;
+	function f(?cb:String->Void):Void {}
+}
+
+---
+
+class T {
+	var a:(Int, ?(String->Void))->Void;
+	var b:(?(String->Void))->Void;
+
+	function f(?cb:String->Void):Void {}
+}
