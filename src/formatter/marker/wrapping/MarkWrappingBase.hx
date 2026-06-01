@@ -508,7 +508,13 @@ class MarkWrappingBase extends MarkerBase {
 				var prevPrev:Null<TokenInfo> = getPreviousToken(prev.token);
 				if (prevPrev != null && !parsedCode.isOriginalSameLine(prevPrev.token, prev.token)) {
 					lineEndBefore(prev.token);
-					additionalIndent(prev.token, addIndent + 1);
+					// When the chain is rooted on a paren (`open` is a call/grouping `(` whose
+					// content sits on its own line), the continuation aligns with that content —
+					// no extra indent. When the first operand shares a line with a prefix
+					// (object field `key: first + ...`, assignment), the continuation must
+					// indent past that prefix (+1).
+					var trailIndent:Int = (open != null && open.tok.match(POpen)) ? addIndent : addIndent + 1;
+					additionalIndent(prev.token, trailIndent);
 				}
 			}
 		}
