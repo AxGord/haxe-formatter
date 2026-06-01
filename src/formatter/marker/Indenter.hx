@@ -511,6 +511,16 @@ class Indenter {
 							if ((lastIndentingToken != null) && (lastIndentingToken.pos.min == prevToken.pos.min)) {
 								continue;
 							}
+							// Inline case body (`case X: expr` on one line): a wrapped argument
+							// already indents relative to the case line via its own container, so
+							// the case `:` must not add a second level (content and closing bracket
+							// alike). Opt-in — a body that starts on its own line is unaffected.
+							if (config.alignInlineSwitchCaseBody) {
+								var caseBody:Null<TokenInfo> = parsedCode.tokenList.getNextToken(prevToken);
+								if ((caseBody != null) && parsedCode.tokenList.isSameLineBetween(prevToken, caseBody.token, false)) {
+									continue;
+								}
+							}
 							mustIndent = true;
 						default:
 					}

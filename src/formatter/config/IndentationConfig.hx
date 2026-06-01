@@ -48,6 +48,16 @@ typedef IndentationConfig = {
 		indent case / default labels (true) or keep them on same level as switch (false)
 	**/
 	@:default(true) @:optional var indentCaseLabels:Bool;
+
+	/**
+		align an inline case body that wraps with the case line instead of adding an
+		extra case-label level. Affects `case X: call({ … })` / `case X: (expr : T)`:
+			(false)							(true)
+		case X: call({					case X: call({
+				field: value					field: value
+			});							});
+	**/
+	@:default(false) @:optional var alignInlineSwitchCaseBody:Bool;
 }
 
 enum abstract ConditionalIndentationPolicy(String) {

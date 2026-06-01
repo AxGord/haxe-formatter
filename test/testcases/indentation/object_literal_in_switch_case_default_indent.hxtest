@@ -1,0 +1,31 @@
+{
+	"wrapping": {
+		"maxLineLength": 80
+	}
+}
+
+---
+
+class C {
+	function h() {
+		return switch this {
+			case Wrapped(item): build({alpha: itemAlpha, betaKey: itemBeta, gammaItem: itemGamma, deltaKey: itemDelta, epsilonField: itemEps});
+		}
+	}
+}
+
+---
+
+class C {
+	function h() {
+		return switch this {
+			case Wrapped(item): build({
+					alpha: itemAlpha,
+					betaKey: itemBeta,
+					gammaItem: itemGamma,
+					deltaKey: itemDelta,
+					epsilonField: itemEps
+				});
+		}
+	}
+}
