@@ -1,0 +1,50 @@
+{
+	"wrapping": {
+		"maxLineLength": 140,
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"}
+			]
+		},
+		"opAddSubChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"},
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}], "type": "fillLine", "location": "beforeLast"}
+			]
+		},
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"},
+				{"conditions": [{"cond": "itemCount <= n", "value": 1}, {"cond": "totalItemLength <= n", "value": 100}], "type": "noWrap"}
+			]
+		}
+	}
+}
+
+---
+
+class C {
+	private inline function log(action:String, filePath:String, success:Bool, itemData:Dynamic = null, ?pos:Dynamic):Void {
+		_log(action, filePath, success, itemData != null ? ((itemData.holder != null ? ', holder cache id: ' + itemData.holder.cacheId : '') + ', cache id: ${itemData.cacheId}, timestamp: ${itemData.timestamp}, cache timestamp: ${itemData.cacheTimestamp}') : '', pos);
+	}
+}
+
+---
+
+class C {
+	private inline function log(action:String, filePath:String, success:Bool, itemData:Dynamic = null, ?pos:Dynamic):Void {
+		_log(
+			action, filePath, success,
+			itemData != null
+			? (
+				(itemData.holder != null ? ', holder cache id: ' + itemData.holder.cacheId : '')
+				+ ', cache id: ${itemData.cacheId}, timestamp: ${itemData.timestamp}, cache timestamp: ${itemData.cacheTimestamp}'
+			)
+			: '',
+			pos
+		);
+	}
+}

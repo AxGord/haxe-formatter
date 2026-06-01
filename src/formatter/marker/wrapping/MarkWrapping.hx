@@ -133,6 +133,116 @@ class MarkWrapping extends MarkWrappingBase {
 		wrapLongCollapsedSingleArgCall();
 		wrapCallParenAroundMultilineTernaryArg();
 		preferComprehensionWrapOverElementSplit();
+		preferInlineTernaryOverOpAddOperandWrap();
+	}
+
+	/** When a block-expanded expression paren wraps `(ternary) + tail`, the ternary
+	 *  is wrapped to fit the line while `+ tail` stays packed (`((cond\n\t? a\n\t: b) + tail`).
+	 *  Prefer keeping the ternary inline and breaking the opAdd instead:
+	 *  `(\n\t(cond ? a : b)\n\t+ tail\n)` — but only when every resulting line then fits.
+	 *  Render-accurate post-pass (runs last): reverted on overflow, so chains that
+	 *  genuinely need the ternary wrapped are left untouched. */
+	function preferInlineTernaryOverOpAddOperandWrap() {
+		var maxLen:Int = config.wrapping.maxLineLength;
+		for (outer in expressionWraps) {
+			if (!isNewLineAfter(outer)) continue; // not block-expanded
+			var outerClose:Null<TokenTree> = getCloseToken(outer);
+			if (outerClose == null) continue;
+			// First content token must be a paren wrapping a currently-wrapped ternary.
+			var firstInfo:Null<TokenInfo> = getNextToken(outer);
+			if (firstInfo == null || !firstInfo.token.tok.match(POpen)) continue;
+			var inner:TokenTree = firstInfo.token;
+			var innerClose:Null<TokenTree> = getCloseToken(inner);
+			if (innerClose == null) continue;
+			if (!containsTopLevelTernary(inner, innerClose)) continue;
+			if (!hasLineBreaksBetween(inner.index, innerClose.index - 1)) continue;
+			// Collect opAdd/opSub operators at the outer paren's top level, after the inner paren.
+			var ops:Array<TokenTree> = collectTopLevelOpAddOps(innerClose, outerClose);
+			if (ops.length == 0) continue;
+			var snapshot = snapshotBreaks(outer.index, outerClose.index);
+			// Inline the ternary: drop every break inside the inner paren.
+			var idx:Int = inner.index;
+			while (idx < innerClose.index) {
+				var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+				idx++;
+				if (info != null && info.whitespaceAfter == Newline) {
+					info.whitespaceAfter = if (info.spacesAfter <= 0) None else Space;
+				}
+			}
+			// Break before each top-level opAdd operator so the tail leads its own line.
+			for (op in ops) {
+				lineEndBefore(op);
+				additionalIndent(op, 0);
+			}
+			// Verify the inline ternary line and every tail line now fit.
+			var ok:Bool = calcLineLength(inner) <= maxLen;
+			if (ok) {
+				for (op in ops) {
+					if (calcLineLength(op) > maxLen) {
+						ok = false;
+						break;
+					}
+				}
+			}
+			if (!ok) restoreBreaks(snapshot);
+		}
+	}
+
+	/** Collect opAdd/opSub operator tokens between two tokens at paren-nesting depth 0
+	 *  (operators that separate operands of the chain directly inside the outer paren). */
+	function collectTopLevelOpAddOps(after:TokenTree, before:TokenTree):Array<TokenTree> {
+		var ops:Array<TokenTree> = [];
+		var depth:Int = 0;
+		var idx:Int = after.index + 1;
+		while (idx < before.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			switch (info.token.tok) {
+				case POpen, BrOpen, BkOpen:
+					depth++;
+				case PClose, BrClose, BkClose:
+					depth--;
+				case Binop(OpAdd), Binop(OpSub):
+					if (depth == 0) ops.push(info.token);
+				default:
+			}
+		}
+		return ops;
+	}
+
+	/** True when a `?` ternary operator appears at the top paren-nesting level
+	 *  between open and close (the paren directly wraps a ternary). */
+	function containsTopLevelTernary(open:TokenTree, close:TokenTree):Bool {
+		var depth:Int = 0;
+		var idx:Int = open.index + 1;
+		while (idx < close.index) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info == null) continue;
+			switch (info.token.tok) {
+				case POpen, BrOpen, BkOpen:
+					depth++;
+				case PClose, BrClose, BkClose:
+					depth--;
+				case Question:
+					if (depth == 0) return true;
+				default:
+			}
+		}
+		return false;
+	}
+
+	/** Snapshot whitespaceAfter for every token in the range (for revert). */
+	function snapshotBreaks(startIdx:Int, endIdx:Int):Array<{idx:Int, ws:formatter.codedata.WhitespaceAfterType}> {
+		var saved:Array<{idx:Int, ws:formatter.codedata.WhitespaceAfterType}> = [];
+		var idx:Int = startIdx;
+		while (idx <= endIdx) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info != null) saved.push({idx: info.token.index, ws: info.whitespaceAfter});
+		}
+		return saved;
 	}
 
 	/**
@@ -1390,6 +1500,27 @@ class MarkWrapping extends MarkWrappingBase {
 		return false;
 	}
 
+	/** True when the paren's first content token is itself a paren AND the content
+	 *  spans multiple lines (the close's own leading break is excluded). Packing such
+	 *  content onto the `(` line produces an asymmetric `((` with a multi-line body —
+	 *  the open paren should keep its leading break (block form) instead. */
+	function startsWithMultilineParen(open:TokenTree, close:TokenTree):Bool {
+		var first:Null<TokenInfo> = getNextToken(open);
+		if (first == null || !first.token.tok.match(POpen)) {
+			return false;
+		}
+		var endIdx:Int = close.index - 1;
+		var idx:Int = open.index + 1;
+		while (idx < endIdx) {
+			var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+			idx++;
+			if (info != null && info.whitespaceAfter == Newline) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** Sum token text lengths + spaces from start to end (inclusive), ignoring newlines. */
 	function calcSpanLength(start:TokenTree, end:TokenTree):Int {
 		var length:Int = 0;
@@ -2528,8 +2659,13 @@ class MarkWrapping extends MarkWrappingBase {
 			var prevIsBinop:Bool = prevToken != null && prevToken.token.tok.match(Binop(_));
 			if (!prevIsBinop) {
 				noLineEndAfter(token);
-				if (calcLineLength(token) > config.wrapping.maxLineLength) {
-					lineEndAfter(token); // doesn't fit — restore leading break
+				// `calcLineLength(token)` only measures up to the first inner break, so a
+				// nested paren whose content wraps early (e.g. `((cond\n\t? a\n\t: b) + x`)
+				// reads as a short `(`-line and would stay packed as `((`. Restore the
+				// leading break when the first content token is itself a paren AND the
+				// content spans multiple lines — block form avoids the asymmetric `((`.
+				if (calcLineLength(token) > config.wrapping.maxLineLength || startsWithMultilineParen(token, pClose)) {
+					lineEndAfter(token); // doesn't fit (or `((` with multiline content) — restore leading break
 				}
 			}
 			// Remove PClose break when it's safe:
