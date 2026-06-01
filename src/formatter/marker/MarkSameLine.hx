@@ -871,7 +871,79 @@ class MarkSameLine extends MarkerBase {
 			}
 		}
 
+		// Phase 4: body is a call/expression whose tail is a collection literal
+		// (`{ ... }` object or `[ ... ]` array) that will wrap, e.g.
+		// `if (cond) items.push({ ... })`. Keep the head (up to the literal's
+		// opening bracket) on the keyword line when it fits — the literal wraps
+		// below. Extends the ObjectDecl struct-body rule (markArrayComprehension)
+		// to literals passed as a call argument.
+		var collOpen:Null<TokenTree> = tailCollectionLiteralOpen(keyword);
+		if (collOpen != null) {
+			var headLen:Int = calcLengthBetween(keyword, collOpen) + calcTokenLength(collOpen);
+			if ((indentLen + headLen) <= config.wrapping.maxLineLength) {
+				return Same;
+			}
+		}
+
 		return Next;
+	}
+
+	/** When a fitLine body is a call/expression whose tail is a collection literal
+	 *  (`{ ... }` object or `[ ... ]` array) — e.g. `items.push({ ... })` — return
+	 *  that literal's opening bracket, else null. The literal must reach the
+	 *  statement tail: only closing brackets and the terminating `;` may follow it.
+	 *  Control-flow keyword bodies (for/if/while/...) and array-access `[ ]` are
+	 *  excluded; `return`/`throw` of a literal are allowed. */
+	function tailCollectionLiteralOpen(keyword:TokenTree):Null<TokenTree> {
+		var body:Null<TokenTree> = getBodyAfterCondition(keyword);
+		if (body == null) {
+			return null;
+		}
+		switch (body.tok) {
+			// `return`/`throw` of a collection literal keeps its head too
+			// (`if (cond) return { ... }`); other keyword bodies (for/if/while/...)
+			// are handled by earlier phases.
+			case Kwd(KwdReturn), Kwd(KwdThrow):
+			case Kwd(_):
+				return null;
+			default:
+		}
+		var last:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(keyword);
+		if (last == null) {
+			return null;
+		}
+		var current:Null<TokenTree> = body;
+		while (current != null && current.index <= last.index) {
+			var isLiteral:Bool = switch (current.tok) {
+				case BrOpen: TokenTreeCheckUtils.getBrOpenType(current) == ObjectDecl;
+				case BkOpen: TokenTreeCheckUtils.getBkOpenType(current) == ArrayLiteral;
+				default: false;
+			};
+			if (isLiteral) {
+				var close:Null<TokenTree> = getCloseToken(current);
+				if (close != null && onlyClosersUntilEnd(close, last)) {
+					return current;
+				}
+			}
+			var next:Null<TokenInfo> = getNextToken(current);
+			current = next == null ? null : next.token;
+		}
+		return null;
+	}
+
+	/** True when every token after `fromToken` up to and including `last` is a
+	 *  closing bracket (`)`, `]`, `}`) or the terminating `;`. */
+	function onlyClosersUntilEnd(fromToken:TokenTree, last:TokenTree):Bool {
+		var next:Null<TokenInfo> = getNextToken(fromToken);
+		while (next != null && next.token.index <= last.index) {
+			switch (next.token.tok) {
+				case PClose, BkClose, BrClose, Semicolon:
+				default:
+					return false;
+			}
+			next = getNextToken(next.token);
+		}
+		return true;
 	}
 
 	function isPartOfIfElse(keyword:TokenTree):Bool {
