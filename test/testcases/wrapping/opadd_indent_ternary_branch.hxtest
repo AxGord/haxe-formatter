@@ -61,9 +61,9 @@ class Main {
 	function main() {
 		final dialog:BatchStopDialog = BatchStopDialog.open(title + (
 			lock
-			? '\n\n<b>' + t('Attention, this is used for project sharing!') + '\n' +
-				t('Stopping sharing will cause access problems for other users.') + '<b/>'
-			: ''
+				? '\n\n<b>' + t('Attention, this is used for project sharing!') + '\n' +
+					t('Stopping sharing will cause access problems for other users.') + '<b/>'
+				: ''
 		));
 	}
 }

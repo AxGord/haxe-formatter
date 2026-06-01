@@ -39,11 +39,11 @@ class C {
 		_log(
 			action, filePath, success,
 			itemData != null
-			? (
-				(itemData.holder != null ? ', holder cache id: ' + itemData.holder.cacheId : '')
-				+ ', cache id: ${itemData.cacheId}, timestamp: ${itemData.timestamp}, cache timestamp: ${itemData.cacheTimestamp}'
-			)
-			: '',
+				? (
+					(itemData.holder != null ? ', holder cache id: ' + itemData.holder.cacheId : '')
+					+ ', cache id: ${itemData.cacheId}, timestamp: ${itemData.timestamp}, cache timestamp: ${itemData.cacheTimestamp}'
+				)
+				: '',
 			pos
 		);
 	}

@@ -60,7 +60,7 @@ class MarkWrapping extends MarkWrappingBase {
 					}
 				case Binop(OpArrow), Arrow:
 					wrapAfter(token, true);
-					if (calcLineLength(token) > config.wrapping.maxLineLength) {
+					if (calcLineLength(token) > config.wrapping.maxLineLength || isArrowBodyMultilineIfElse(token)) {
 						var arrowType:Null<ArrowType> = TokenTreeCheckUtils.getArrowType(token);
 						if (arrowType != OldFunctionType) {
 							arrowWraps.push(token);
@@ -134,6 +134,84 @@ class MarkWrapping extends MarkWrappingBase {
 		wrapCallParenAroundMultilineTernaryArg();
 		preferComprehensionWrapOverElementSplit();
 		preferInlineTernaryOverOpAddOperandWrap();
+		normalizeTernaryBranchIndent();
+	}
+
+	/** A wrapped ternary's `?`/`:` (and their branch continuations) belong one level
+	 *  deeper than the condition. The Indenter supplies that when the condition shares
+	 *  a line with a prefix (`x = cond ? …`, `return cond ? …`), but flush-aligns them
+	 *  with the condition when it sits on its own line (call argument / grouping paren).
+	 *  Normalise to condition + 1 here, as a late post-pass so `additionalIndent` set by
+	 *  the opAdd / expression / nested-ternary passes is already final and the indents
+	 *  are render-accurate (`calcIndent` alone misses those, hence the earlier flush vs
+	 *  +1 inconsistency). Shift the whole branch by the missing delta — cases already at
+	 *  +1 get delta 0 and are untouched. Nested ternaries are left to the staircase pass
+	 *  in `applyTernaryWrapping`; shifting the enclosing root moves them uniformly. */
+	function normalizeTernaryBranchIndent() {
+		for (wrap in ternaryWraps) {
+			if (!isNewLineBefore(wrap.question)) {
+				continue; // not wrapped
+			}
+			if (isTernaryNestedInAnother(wrap)) {
+				continue;
+			}
+			var delta:Int = (renderIndent(wrap.itemStart) + 1) - renderIndent(wrap.question);
+			if (delta <= 0) {
+				continue;
+			}
+			var bodyEnd:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(wrap.dblDot);
+			if (bodyEnd == null) {
+				continue;
+			}
+			var idx:Int = wrap.question.index;
+			while (idx <= bodyEnd.index) {
+				var info:Null<TokenInfo> = parsedCode.tokenList.tokens[idx];
+				idx++;
+				if (info == null) {
+					continue;
+				}
+				// A branch line can start either via a hard newline or via an opAdd/opBool
+				// `wrapAfter` part-break (the two break mechanisms); shift both so the
+				// whole branch moves uniformly. additionalIndent on a token that turns out
+				// not to start a line is ignored at render, so over-matching is harmless
+				// here (this is the last pass — nothing re-breaks afterwards).
+				var prev:Null<TokenInfo> = getPreviousToken(info.token);
+				if (isNewLineBefore(info.token) || (prev != null && prev.wrapAfter)) {
+					additionalIndent(info.token, info.additionalIndent + delta);
+				}
+			}
+		}
+	}
+
+	/** Render-accurate indent of a token: structural indent plus the `additionalIndent`
+	 *  later passes have applied (which `calcIndent` does not account for). */
+	function renderIndent(token:TokenTree):Int {
+		var indent:Int = indenter.calcIndent(token);
+		var info:Null<TokenInfo> = parsedCode.tokenList.tokens[token.index];
+		if (info != null) {
+			indent += info.additionalIndent;
+		}
+		return indent;
+	}
+
+	/** True when this ternary's `?` falls inside another wrapped ternary's branch span. */
+	function isTernaryNestedInAnother(wrap:{itemStart:TokenTree, question:TokenTree, dblDot:TokenTree}):Bool {
+		for (outer in ternaryWraps) {
+			if (outer == wrap) {
+				continue;
+			}
+			if (!isNewLineBefore(outer.question)) {
+				continue;
+			}
+			if (wrap.question.index <= outer.question.index) {
+				continue;
+			}
+			var outerEnd:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(outer.dblDot);
+			if (outerEnd != null && wrap.question.index < outerEnd.index) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** When a block-expanded expression paren wraps `(ternary) + tail`, the ternary
@@ -2172,9 +2250,13 @@ class MarkWrapping extends MarkWrappingBase {
 			if (!isNewLineAfter(token)) {
 				continue;
 			}
-			// Try collapse: remove break, check if line fits
+			// Try collapse: remove break, check if line fits.
+			// Exception: an `if … else` body already broken across lines stays expanded
+			// even when the arrow head fits — collapsing it would align `else`/`else if`
+			// with the enclosing call statement instead of nesting them in the lambda
+			// body (matches the long-head arrow-lambda layout).
 			noLineEndAfter(token);
-			if (calcLineLength(token) <= config.wrapping.maxLineLength) {
+			if (calcLineLength(token) <= config.wrapping.maxLineLength && !isArrowBodyMultilineIfElse(token)) {
 				continue;
 			}
 			// Short struct body (u -> {email: ...}): keep collapsed — method chain will handle the line.
@@ -2222,6 +2304,22 @@ class MarkWrapping extends MarkWrappingBase {
 			}
 			removeInnerArrowBreaks(child);
 		}
+	}
+
+	/** A lambda arrow whose body is an `if … else` (or `else if` chain) that is already
+	 *  wrapped across multiple lines. Such bodies must break after `->` even when the
+	 *  arrow head fits the line, otherwise `else`/`else if` align with the enclosing call
+	 *  statement instead of nesting inside the lambda body. Plain `if` (no `else`) and
+	 *  single-line bodies are left untouched. */
+	function isArrowBodyMultilineIfElse(arrow:TokenTree):Bool {
+		var bodyInfo:Null<TokenInfo> = getNextToken(arrow);
+		if (bodyInfo == null) return false;
+		var ifToken:TokenTree = bodyInfo.token;
+		if (!ifToken.tok.match(Kwd(KwdIf))) return false;
+		if (ifToken.access().firstOf(Kwd(KwdElse)).token == null) return false;
+		var lastToken:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(ifToken);
+		if (lastToken == null) return false;
+		return hasInnerBreakInRange(arrow.index + 1, lastToken.index);
 	}
 
 	function applyConditionWrapping() {

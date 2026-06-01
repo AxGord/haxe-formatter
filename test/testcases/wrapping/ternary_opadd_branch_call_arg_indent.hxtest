@@ -1,0 +1,54 @@
+{
+	"emptyLines": {"classEmptyLines": {"beginType": 0, "endType": 0}},
+	"wrapping": {
+		"maxLineLength": 140,
+		"callParameter": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"}
+			]
+		},
+		"opAddSubChain": {
+			"defaultWrap": "noWrap",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"},
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 1}], "type": "fillLine", "location": "beforeLast"}
+			]
+		},
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"}
+			]
+		},
+		"ternaryExpression": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}], "type": "noWrap"}
+			]
+		}
+	}
+}
+
+---
+
+class C {
+	function f():Void {
+		recordWriter(source, dataPath, enabled, recordItemRef != null ? ', ${recordItemRef.primaryPathKey} -> ${recordItemRef.pathKey}' + ', extra id: ${recordItemRef.uniqueKeyId}, extra stamp: ${recordItemRef.markerKeyValue}' : '', context);
+	}
+}
+
+---
+
+class C {
+	function f():Void {
+		recordWriter(
+			source, dataPath, enabled,
+			recordItemRef != null
+				? ', ${recordItemRef.primaryPathKey} -> ${recordItemRef.pathKey}' +
+					', extra id: ${recordItemRef.uniqueKeyId}, extra stamp: ${recordItemRef.markerKeyValue}'
+				: '',
+			context
+		);
+	}
+}
