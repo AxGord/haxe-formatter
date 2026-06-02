@@ -963,7 +963,7 @@ class MarkWrapping extends MarkWrappingBase {
 		// FitLine policy AND the collapsed span fits on the surrounding line, follow the
 		// configured rules (which typically pick NoWrap → collapse).
 		if (!parsedCode.isOriginalSameLine(token, brClose)) {
-			if (!shouldCollapseInComprehension(token, brClose)) {
+			if (!shouldCollapseInComprehension(token, brClose) && !shouldCollapseInExpressionIf(token, brClose)) {
 				wrapChildOneLineEach(token, brClose, 0);
 				return;
 			}
@@ -1044,9 +1044,48 @@ class MarkWrapping extends MarkWrappingBase {
 	function shouldCollapseInComprehension(brOpen:TokenTree, brClose:TokenTree):Bool {
 		if (config.sameLine.comprehensionFor != FitLine) return false;
 		if (!isInsideComprehensionForBody(brOpen)) return false;
+		return collapsedFitsOnLine(brOpen, brClose);
+	}
+
+	/**
+	 * Returns true when the `{...}` span between `brOpen` and `brClose`, collapsed onto
+	 * a single line at its current indentation and prefix, fits within maxLineLength.
+	 */
+	function collapsedFitsOnLine(brOpen:TokenTree, brClose:TokenTree):Bool {
 		final indent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(brOpen));
 		final collapsedSpan:Int = calcSpanLength(brOpen, brClose);
 		return (indent + calcLineLengthBefore(brOpen) + collapsedSpan) <= config.wrapping.maxLineLength;
+	}
+
+	/**
+	 * Returns true when `brOpen` is an ObjectDecl used as a value branch of an
+	 * expression-if (`return if (...) {...} else {...}`, `var x = if (...) ...`) AND
+	 * the struct collapsed onto its line fits within maxLineLength. In that case the
+	 * source multi-line layout is discarded so sibling branches format uniformly;
+	 * otherwise the original structure is preserved via one-per-line. Respects the
+	 * `Keep` expression-if policy, which explicitly preserves the author's layout.
+	 */
+	function shouldCollapseInExpressionIf(brOpen:TokenTree, brClose:TokenTree):Bool {
+		if (config.sameLine.expressionIf == Keep) return false;
+		if (!isExpressionIfBranchBody(brOpen)) return false;
+		return collapsedFitsOnLine(brOpen, brClose);
+	}
+
+	/**
+	 * Returns true when `brOpen` (already known to be an ObjectDecl) is a direct branch
+	 * body of an `if`/`else`. Statement-if bodies are Block-typed, so an ObjectDecl child
+	 * of `if`/`else` is necessarily a value-returning expression-if branch.
+	 * Comprehension-if branches are excluded — those are owned by shouldCollapseInComprehension.
+	 */
+	function isExpressionIfBranchBody(brOpen:TokenTree):Bool {
+		final parent:Null<TokenTree> = brOpen.parent;
+		if (parent == null) return false;
+		switch (parent.tok) {
+			case Kwd(KwdIf), Kwd(KwdElse):
+			case _:
+				return false;
+		}
+		return !isInsideComprehensionForBody(brOpen);
 	}
 
 	function isInsideComprehensionForBody(token:TokenTree):Bool {

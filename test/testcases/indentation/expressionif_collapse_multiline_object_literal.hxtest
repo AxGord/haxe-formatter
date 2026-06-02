@@ -1,0 +1,45 @@
+{
+	"wrapping": {
+		"maxLineLength": 140
+	},
+	"whitespace": {
+		"bracesConfig": {
+			"objectLiteralBraces": {
+				"openingPolicy": "after",
+				"closingPolicy": "before"
+			}
+		}
+	},
+	"sameLine": {
+		"expressionIf": "next"
+	}
+}
+
+---
+
+class Main {
+	function choose():SizeType {
+		return if (flagOne)
+			{ width: VALUE_A, height: VALUE_B }
+		else if (flagTwo)
+			{
+				width: VALUE_C,
+				height: VALUE_D
+			}
+		else
+			{ width: VALUE_E, height: VALUE_F };
+	}
+}
+
+---
+
+class Main {
+	function choose():SizeType {
+		return if (flagOne)
+			{ width: VALUE_A, height: VALUE_B }
+		else if (flagTwo)
+			{ width: VALUE_C, height: VALUE_D }
+		else
+			{ width: VALUE_E, height: VALUE_F };
+	}
+}
