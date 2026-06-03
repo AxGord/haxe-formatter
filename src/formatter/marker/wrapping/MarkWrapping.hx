@@ -359,12 +359,18 @@ class MarkWrapping extends MarkWrappingBase {
 				}
 			}
 			if (!hasAssign) continue;
-			// Narrow further: skip when ANY newline break inside the arg is NOT a
-			// ternary `?`/`:` break — opAdd chains, multi-arg-call commas (at any
-			// depth), etc. have their own wrap logic. Wrap only when the arg is
-			// monolithic (no inner breaks: long string, simple expression) or has
-			// only ternary breaks (whose indent assumes call paren wrapped — broken
-			// layout when it didn't).
+			// Skip when ANY newline break inside the arg is NOT a ternary `?`/`:` break —
+			// opAdd chains and the arg-call's own comma list break naturally at those
+			// fillLine points (issue_314 / issue_100) and must stay broken in place. Wrap
+			// only when the arg is monolithic (no inner breaks: long string, simple
+			// expression) or has only ternary breaks (whose indent assumes call paren
+			// wrapped — broken layout when it didn't).
+			// EXCEPTION: a method-chain break (Dot after `)`) means the arg is a postfix
+			// chain that got split at depth (`cast(a, T).field`); splitting a chain is the
+			// ugly case — prefer wrapping the call paren and keeping the chain whole, even
+			// when it also carries a nested call-comma break that stripBreaksBetween folds
+			// back. Same intent as preferParenWrapOverSingleArgChainBreak, which cannot act
+			// here because that nested comma break is not a chain break it strips.
 			var hasNonTernaryBreak:Bool = false;
 			var ti:Int = place.start.index + 1;
 			while (ti < pClose.index) {
@@ -381,7 +387,7 @@ class MarkWrapping extends MarkWrappingBase {
 				}
 				if (hasNonTernaryBreak) break;
 			}
-			if (hasNonTernaryBreak) continue;
+			if (hasNonTernaryBreak && !hasMethodChainBreaks(place.start.index, pClose.index)) continue;
 			var indent:Int = indenter.calcAbsoluteIndent(indenter.calcIndent(lineStart));
 			// `calcSpanLength` already INCLUDES both endpoint tokens' text — the prior
 			//  `+ calcTokenLength(...)` on the head/full lines double-counted the
