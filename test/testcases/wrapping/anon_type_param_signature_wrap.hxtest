@@ -1,0 +1,17 @@
+{ "wrapping": { "maxLineLength": 140 } }
+
+---
+
+class Holder {
+	public function takes(arg:{ actions:Array<Array<InteractiveTarget>>, manager:Array<Array<InteractiveTarget>>, object:InteractiveTarget }):Void {}
+}
+
+---
+
+class Holder {
+	public function takes(arg:{
+		actions:Array<Array<InteractiveTarget>>,
+		manager:Array<Array<InteractiveTarget>>,
+		object:InteractiveTarget
+	}):Void {}
+}

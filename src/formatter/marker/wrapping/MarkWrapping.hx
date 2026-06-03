@@ -14,6 +14,7 @@ class MarkWrapping extends MarkWrappingBase {
 	var multiParamOpAddTokens:Array<TokenTree> = [];
 	var assignmentWraps:Array<TokenTree> = [];
 	var extendsWraps:Array<{first:TokenTree, end:TokenTree}> = [];
+	var anonTypeWraps:Array<TokenTree> = [];
 
 	public function run() {
 		var wrappableTokens:Array<TokenTree> = parsedCode.root.filterCallback(function(token:TokenTree, index:Int):FilterResult {
@@ -119,6 +120,7 @@ class MarkWrapping extends MarkWrappingBase {
 		collapseChainWraps();
 		applyAssignmentWrapping();
 		applyExtendsWrapping();
+		reEvaluateAnonTypeOverflow();
 		reEvaluateMethodChainAfterCallParam();
 		breakLongMethodChains();
 		preferParenWrapOverSingleArgChainBreak();
@@ -935,8 +937,18 @@ class MarkWrapping extends MarkWrappingBase {
 			return;
 		}
 
-		var items:Array<WrappableItem> = makeWrappableItems(token);
+		// In a function signature the anon type's brace carries a tentative break from
+		// MarkLineEnds, which truncates calcLineLength here so the rules can mis-measure
+		// the line as fitting and keep it inline. Re-checked after signature/parameter
+		// wrapping is materialized (reEvaluateAnonTypeOverflow), when the length is
+		// render-accurate.
+		anonTypeWraps.push(token);
 
+		applyAnonTypeWrapping(token, brClose);
+	}
+
+	function applyAnonTypeWrapping(token:TokenTree, brClose:TokenTree) {
+		var items:Array<WrappableItem> = makeWrappableItems(token);
 		applyWrappingPlace({
 			origin: AnonTypeWrapping,
 			start: token,
@@ -946,6 +958,30 @@ class MarkWrapping extends MarkWrappingBase {
 			useTrailing: true,
 			overrideAdditionalIndent: null
 		});
+	}
+
+	/**
+	 * Post-pass: an anon type left inline by `anonTypeWrapping` whose line still
+	 *  overflows maxLineLength once every other wrap is materialized — re-run its
+	 *  wrapping rules with the now render-accurate line length. Fixes anon return /
+	 *  parameter types whose initial measurement was truncated by the brace's
+	 *  tentative break; respects the configured rules (an empty rule set keeps it
+	 *  inline) and the post-wrap line (a short anon beside wrapped params stays inline).
+	 */
+	function reEvaluateAnonTypeOverflow() {
+		for (open in anonTypeWraps) {
+			if (isNewLineAfter(open)) {
+				continue;
+			}
+			if (calcLineLength(open) <= config.wrapping.maxLineLength) {
+				continue;
+			}
+			var brClose:Null<TokenTree> = getCloseToken(open);
+			if (brClose == null) {
+				continue;
+			}
+			applyAnonTypeWrapping(open, brClose);
+		}
 	}
 
 	function objectLiteralWrapping(token:TokenTree) {
@@ -1755,7 +1791,13 @@ class MarkWrapping extends MarkWrappingBase {
 				continue;
 			}
 			var lhsLen:Int = indent + calcSpanLength(declRoot, assign);
-			var rhsLen:Int = indent + config.indentation.tabWidth + calcSpanLength(next.token, semicolon);
+			// RHS first line after the `=` break. When the RHS call already wraps
+			// (`new T<...>(` with its args on the lines below), only the head up to that
+			// bracket stays on this line — measure to the bracket, not the whole RHS.
+			// Otherwise (no bracket, or an unwrapped call) the entire RHS sits on the one
+			// continuation line and must fit as a whole.
+			var rhsFirstLineEnd:TokenTree = (rhsWrapOpen != null && isNewLineAfter(rhsWrapOpen)) ? rhsWrapOpen : semicolon;
+			var rhsLen:Int = indent + config.indentation.tabWidth + calcSpanLength(next.token, rhsFirstLineEnd);
 			if (lhsLen > maxLen || rhsLen > maxLen) {
 				continue;
 			}

@@ -1,0 +1,21 @@
+{ "wrapping": { "maxLineLength": 140 } }
+
+---
+
+class Holder {
+	public function collectChannels():{ actions:Array<Array<InteractiveTarget>>, manager:Array<Array<InteractiveTarget>>, object:InteractiveTarget } {
+		return { actions: [[_items]], manager: [], object: _items };
+	}
+}
+
+---
+
+class Holder {
+	public function collectChannels():{
+		actions:Array<Array<InteractiveTarget>>,
+		manager:Array<Array<InteractiveTarget>>,
+		object:InteractiveTarget
+	} {
+		return {actions: [[_items]], manager: [], object: _items};
+	}
+}
