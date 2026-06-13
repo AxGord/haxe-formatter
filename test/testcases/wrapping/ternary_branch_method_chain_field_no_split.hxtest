@@ -1,0 +1,53 @@
+{
+	"emptyLines": {
+		"classEmptyLines": {
+			"beginType": 0,
+			"endType": 0
+		}
+	},
+	"wrapping": {
+		"maxLineLength": 140,
+		"conditionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		},
+		"expressionWrapping": {
+			"defaultWrap": "fillLineWithLeadingBreak",
+			"rules": [
+				{
+					"conditions": [{"cond": "exceedsMaxLineLength", "value": 0}],
+					"type": "noWrap"
+				}
+			]
+		}
+	},
+	"sameLine": {
+		"ifBody": "fitLine",
+		"forBody": "fitLine",
+		"whileBody": "fitLine",
+		"functionBody": "fitLine"
+	}
+}
+
+---
+
+class C {
+	function f():Void {
+		final matchingPaths:Int = resolvedRecordId == DataUtil.UNRESOLVED_RECORD_KEY ? 0 : _registry.recordDatabase.getEntriesByRecordId(bucket, resolvedRecordId, true).length;
+	}
+}
+
+---
+
+class C {
+	function f():Void {
+		final matchingPaths:Int = resolvedRecordId == DataUtil.UNRESOLVED_RECORD_KEY
+			? 0
+			: _registry.recordDatabase.getEntriesByRecordId(bucket, resolvedRecordId, true).length;
+	}
+}

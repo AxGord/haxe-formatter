@@ -3210,19 +3210,21 @@ class MarkWrapping extends MarkWrappingBase {
 
 	/**
 	 * Post-`breakLongMethodChains`: sibling of `preferParenWrapOverSingleArgChainBreak`.
-	 *  When a detected ternary was NOT wrapped (its collapse check was fooled by a
-	 *  queue break shortening the first physical line) and a branch contains a
-	 *  method-chain break (overflow fallback), prefer wrapping the ternary. If both
-	 *  branches then fit on one line, also strip the chain breaks for a clean look;
+	 *  A ternary branch can carry a method-chain break (overflow fallback) that was
+	 *  placed against the un-wrapped full line — either because the ternary's own
+	 *  collapse check was fooled by a queue break shortening the first physical line
+	 *  (ternary still NOT wrapped), or because the chain was wrapped by the queue
+	 *  before the ternary auto-wrapped onto its `?`/`:` lines (ternary ALREADY
+	 *  wrapped, stale break left in a branch that now fits). Handle both: when the
+	 *  ternary is not yet wrapped, prefer wrapping it. In either case, if both
+	 *  branches collapse to fit on one line, strip the chain breaks for a clean look;
 	 *  otherwise keep them so the branches remain readable. Acts on the materialized
-	 *  chain break; idempotent (gate is the break itself — once the ternary is wrapped,
-	 *  any remaining chain breaks live inside an already-wrapped branch).
+	 *  chain break; idempotent (gate is the break itself — once collapsed, the branch
+	 *  fits and no chain break remains; `lineEndBefore` is a no-op when already wrapped).
 	 */
 	function preferTernaryWrapOverBranchChainBreak() {
 		var maxLen:Int = config.wrapping.maxLineLength;
 		for (wrap in ternaryWraps) {
-			// Already wrapped — nothing to recover.
-			if (isNewLineBefore(wrap.question)) continue;
 			var dblDotEnd:Null<TokenTree> = TokenTreeCheckUtils.getLastToken(wrap.dblDot);
 			if (dblDotEnd == null) continue;
 			if (!hasMethodChainBreaks(wrap.question.index, dblDotEnd.index)) continue;
